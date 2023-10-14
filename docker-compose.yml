@@ -1,0 +1,46 @@
+version: '3'
+
+services:
+
+# Frontend
+  frontend-app-container:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    volumes:
+      - type: bind
+        source: ./frontend/src
+        target: /usr/src/app/src
+    ports:
+      - 127.0.0.1:5173:5173
+
+# API
+
+  api:
+    build:
+      context: ./api
+    volumes:
+      - ./container_data/data/:/data
+    container_name: api
+    ports:
+      - 127.0.0.1:1337:80
+
+# data storage
+
+  pg-db:
+    build: ./db
+    image: "postgres:9.6-alpine"
+    volumes:
+      - ./container_data/db/:/var/lib/postgresql/data
+    ports:
+      - 127.0.0.1:5432:5432
+    environment:
+      - POSTGRES_DB=test_db
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=PG_PASSWORD
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d test_db -U test_user"]
+      interval: 1s
+      timeout: 3s
+      retries: 50
