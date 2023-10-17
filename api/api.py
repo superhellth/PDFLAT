@@ -1,7 +1,9 @@
-# from utils.db import *
+from utils.db import *
 from utils.generators import *
 from utils.page import Page
 from utils.line import Line
+from utils.document import Document
+import pdfplumber
 import pandas as pd
 from fastapi.staticfiles import StaticFiles
 from collections import defaultdict
@@ -40,7 +42,14 @@ import sys
 
 
 def get_position(element):
-    # x, y, w, h
+    """Calculate the position of a given BeautifulSoup element.
+
+    Args:
+        element (BF element): Element to extract positional attributes from.
+
+    Returns:
+        int[]: x position, y position, width and height.
+    """
     return float(element['xMin']), float(element['yMin']), float(element['xMax']) - float(element['xMin']), float(element['yMax']) - float(element['yMin'])
 
 
@@ -49,9 +58,19 @@ def root():
     return {"PDFLAT": "API says hi :)"}
 
 
-def parse_pdf(doc_id, doc_path, doc_folder):
-    xml_path = doc_path.replace('.pdf', '.xml')
+def parse_pdf(doc_id, doc_name, doc_path, dataset_id):
+    """Extract lines and characters from PDF.
 
+    Args:
+        doc_id (int): ID of document.
+        doc_path (str): Path to pdf to parse.
+
+    Returns:
+        Page[]: List of page objects holding line and char references.
+    """
+
+    # Convert pdf to xml using pdftotext
+    xml_path = doc_path.replace('.pdf', '.xml')
     os.system(
         f'pdftotext -bbox-layout {doc_path} {xml_path}')
     file_handler = io.open(xml_path,
@@ -61,89 +80,68 @@ def parse_pdf(doc_id, doc_path, doc_folder):
     doc_pages = doc.select('page')
 
     pages = []
-    lines = []
-    chars = []
+    chars_by_page = []
+
+    # Extract chars using PDFPlumber
+    with pdfplumber.open(doc_path) as pdf:
+        for page_nr, page in enumerate(pdf.pages):
+            chars_by_page.append(page.chars)
+
+    # Extract lines using pdftotext
     for page_nr, doc_page in enumerate(doc_pages):
         page_width, page_height = int(np.floor(float(doc_page['width']))), int(
             np.floor(float(doc_page['height'])))
+        lines = []
 
         line_objects = doc_page.select('line')
         for line_nr, line_object in enumerate(line_objects):
             # Create line objects ready for db
             x, y, width, height = get_position(line_object)
-            line = Line(doc_id, page_nr, line_nr, x, y, width, height)
+            line_text = "PLACEHOLDER"
+            line = Line(doc_id, page_nr, line_nr, line_text, x, y, width, height)
             lines.append(line)
 
-        pages.append(Page(doc_id, page_nr, page_width, page_height, lines, chars))
-        lines = []
+        pages.append(Page(doc_id, page_nr, page_width, page_height, lines, chars_by_page[page_nr]))
 
-    # with pdfplumber.open(document.path) as pdf:
+    return Document(doc_id, doc_name, dataset_id, pages)
 
-    return pages
+print(parse_pdf(0, "./container_data/data/64d9c76bfba8950934efb9318e2076e9.pdf", "./container_data/data/"))
 
-print(parse_pdf(0, "./container_data/data/6dc82e492ffa883f8f42163895d246f9.pdf", "./container_data/data/"))
 
 # @app.post("/upload_pdf/{dataset_id}")
-# def upload(file_obj: UploadFile, dataset_id: str):
-#     print('uploading pdf...')
-#     if file_obj.content_type != 'application/pdf':
-#         print(f'ivalid file type ({file_obj.content_type})')
-#         return {'success': False, 'message': 'file is not a pdf', 'doc_id': None}
+def upload(file_obj: UploadFile, dataset_id: str):
+    print('uploading pdf...')
 
-#     doc_name = file_obj.filename.replace('.pdf', '')
-#     doc_id = md5_from_string(doc_name + dataset_id)
+    # Check if file is PDF
+    if file_obj.content_type != 'application/pdf':
+        print(f'ivalid file type ({file_obj.content_type})')
+        return {'success': False, 'message': 'file is not a pdf', 'doc_id': None}
 
-#     if not insert_documents(pd.DataFrame({'document_id': [doc_id], 'title': [doc_name], 'dataset_id': [dataset_id]})):
-#         return {'success': False, 'message': 'document already exists', 'doc_id': doc_id}
+    # Extract name and generate ID
+    doc_name = file_obj.filename.replace('.pdf', '')
+    doc_id = md5_from_string(doc_name + dataset_id)
 
-#     doc_folder = f'/data/{doc_id}/'
-#     doc_path = f'/data/{doc_id}.pdf'
-#     os.mkdir(doc_folder)
+    # Store a copy of the file
+    doc_path = f'/data/{doc_id}.pdf'
+    with open(doc_path, "wb") as buffer:
+        shutil.copyfileobj(file_obj.file, buffer)
+    print(f'stored file {doc_id}.pdf')
 
-#     with open(doc_path, "wb") as buffer:
-#         shutil.copyfileobj(file_obj.file, buffer)
+    # Insert the document into the database
+    if not insert_document(parse_pdf(doc_id, doc_name, doc_path, dataset_id)):
+        return {'success': False, 'message': 'document already exists', 'doc_id': doc_id}
 
-#     print(f'stored file {doc_id}.pdf')
-#     pages, nodes, regions = parse_pdf(doc_id, doc_path, doc_folder)
-
-#     nodes_df = pd.DataFrame(dict(nodes))
-#     insert_nodes(nodes_df)
-
-#     for page in pages:
-#         page_nodes = get_nodes_in_region(
-#             doc_id, page['page_nr'], 0, 0, page['page_width'], page['page_height'])
-
-#         # order by node_nr
-#         page_nodes = page_nodes.sort_values(by=['node_nr'])
-#         # set node number to consecutive numbers starting at 0
-#         page_nodes['node_nr'] = range(len(page_nodes))
-
-#         graphs = {}
-#         for method in ['1NN', '2NN', '3NN']:
-#             graphs[method] = compute_graph_from_nodes(
-#                 page_nodes, method=method)
-
-#         page['nodes'] = [Json(x) for x in page_nodes.to_dict('records')],
-#         page['graphs'] = json.dumps(graphs)
-
-#     pages_df = pd.DataFrame(pages)
-
-#     insert_pages(pages_df)
-#     for region in regions:
-#         create_and_insert_region(**region)
-
-#     # return a json response with a list of all images
-#     return JSONResponse({'document_id': doc_id})
+    return JSONResponse({'document_id': doc_id})
 
 
 # @ app.post("/dataset")
-# async def create_dataset(request: Request):
-#     data = await request.json()
-#     name = data.get("name")
-#     dataset_id = md5_from_string(name)
-#     if not insert_datasets(pd.DataFrame({'dataset_id': [dataset_id], 'name': [name]})):
-#         return {'success': False, 'message': 'dataset already exists', 'dataset': get_dataset_from_db(dataset_id)}
-#     return {'success': True, 'message': 'dataset created', 'dataset': get_dataset_from_db(dataset_id)}
+async def create_dataset(request: Request):
+    data = await request.json()
+    name = data.get("name")
+    dataset_id = md5_from_string(name)
+    if not insert_dataset(dataset_id, name):
+        return {'success': False, 'message': 'dataset already exists', 'dataset': get_dataset_from_db(dataset_id)}
+    return {'success': True, 'message': 'dataset created', 'dataset': get_dataset_from_db(dataset_id)}
 
 
 # @ app.post("/region")

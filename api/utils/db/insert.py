@@ -1,69 +1,120 @@
-import json
 from .base import connect, close
-from .getters import get_dataset_model_from_db
+from utils.document import Document
+from utils.page import Page
+from utils.line import Line
 from psycopg2.errors import UniqueViolation
 
-def insert_dataframe(table, df):
+def insert_document(document: Document):
+    """Insert a document into the database. Including adding the pages, lines and chars
+    into the according tables.
+
+    Args:
+        document (Document): The document to index.
+
+    Returns:
+        bool: Whether or not the insert was successful.
+    """
     # Connect to the database
     conn, cur = connect()
 
-    # generate the query string
-    columns = df.columns.tolist()
-    placeholder = []
-    for c in columns:
-        if c == 'nodes':
-            placeholder.append('%s::json[]')
-        else:
-            placeholder.append('%s')
-
-    sql = f"INSERT INTO {table} ({','.join(columns)}) VALUES ({','.join(placeholder)});"
-
-    # Execute the SQL query with the data as parameters
+    # Insert document
+    sql = f"INSERT INTO documents (document_id, title, dataset_id) VALUES (%s, %s, %s);"
+    values = (document.document_id, document.title, document.dataset_id)
     try:
-        for _, row in df.iterrows():
+        cur.execute(sql, values)
+    except UniqueViolation as e:
+        return False
 
-            # use json dumps on all dataframe rows where type is dict
-            for i, value in enumerate(row):
-                if isinstance(value, dict):
-                    row[i] = json.dumps(value)
+    # Insert pages
+    for page in document.pages:
+        if not insert_page(page, cur):
+            return False
 
-            cur.execute(sql, row)
+    close(conn, cur)
+    return True
+
+def insert_dataset(dataset_id, dataset_name):
+    # Connect to the database
+    conn, cur = connect()
+
+    # Insert dataset
+    sql = f"INSERT INTO datasets (dataset_id, name) VALUES (%s, %s);"
+    values = (dataset_id, dataset_name)
+    try:
+        cur.execute(sql, values)
     except UniqueViolation as e:
         return False
 
     close(conn, cur)
     return True
 
-def insert_models(models):
-    return insert_dataframe('models', models)
+def insert_page(page: Page, cur):
+    """Insert page into the database. Including adding the lines and chars.
 
-def insert_nodes(nodes):
-    return insert_dataframe('nodes', nodes)
+    Args:
+        page (Page): The page to index.
+        cur (?): Database connection.
 
-def insert_datasets(datasets):
-    return insert_dataframe('datasets', datasets)
+    Returns:
+        bool: Whether or not the insert was successful.
+    """
+    # Insert page
+    sql = f"INSERT INTO pages (document_id, page_nr, page_width, page_height, number_lines, number_chars) VALUES (%s, %s, %s, %s, %s, %s);"
+    values = (page.document_id, page.page_nr, page.width, page.height, page.number_lines, page.number_chars)
+    try:
+        cur.execute(sql, values)
+    except UniqueViolation as e:
+        return False
 
-def insert_pages(pages):
-    return insert_dataframe('pages', pages)
+    # Insert lines
+    for line in page.lines:
+        if not insert_line(line, cur):
+            return False
 
-def insert_documents(documents):
-    return insert_dataframe('documents', documents)
+    # Insert chars
+    for char in page.chars:
+        if not insert_char(char, cur):
+            return False
 
-def insert_regions(regions):
-    return insert_dataframe('regions', regions)
+    return True
 
-# special cases
+def insert_line(line: Line, cur):
+    """Insert line into database.
 
-def create_dataset_model(model_id, dataset_id, train_ids, test_ids, eval_ids, num_classes, num_node_features, file_path):
-    # Connect to the database
-    conn, cur = connect()
+    Args:
+        line (Line): Line to index.
+        cur (?): Connection to database.
 
-    # Define the SQL query to get the data
-    sql = """INSERT INTO dataset_models (model_id, dataset_id, train_ids, test_ids, eval_ids, num_classes, num_node_features, file_path) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);"""
+    Returns:
+        bool: Whether or not the insert was successful.
+    """
+    sql = f"INSERT INTO lines (document_id, page_nr, line_nr, line_text, x, y, width, height) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);"
+    values = (line.document_id, line.page_nr, line.line_nr, line.text, line.x, line.y, line.width, line.height)
+    try:
+        cur.execute(sql, values)
+    except UniqueViolation as e:
+        return False
 
-    # Execute the SQL query with the data as parameters
-    cur.execute(sql, (model_id, dataset_id, train_ids, test_ids, eval_ids, num_classes, num_node_features, file_path))
+    return True
 
-    close(conn, cur)
+def insert_char(document_id, page_nr, char_nr, char, cur):
+    """Insert char into database.
 
-    return get_dataset_model_from_db(model_id, dataset_id)
+    Args:
+        document_id (int): ID of the corresponding document.
+        page_nr (int): Number of the corresponding page.
+        char_nr (int): Number of this char.
+        char (dict): The char object.
+        cur (?): Connection to the database.
+
+    Returns:
+        bool: Whether or not the insert was successful.
+    """
+    sql = f"INSERT INTO chars (document_id, page_nr, char_nr, char_text, x, y, width, height) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);"
+    values = (document_id, page_nr, char_nr, char["text"], char["x0"], char["y0"], char["width"], char["height"])
+    try:
+        cur.execute(sql, values)
+    except UniqueViolation as e:
+        return False
+
+    return True

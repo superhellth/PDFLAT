@@ -52,8 +52,8 @@ CREATE TABLE datasets (
 );
 
 CREATE TABLE documents (
-    dataset_id text not null,
     document_id text not null,
+    dataset_id text not null,
     title text not null,
     primary key (document_id)
 );
@@ -71,7 +71,8 @@ CREATE TABLE pages (
 CREATE TABLE lines (
     document_id text not null,
     page_nr integer not null,
-    line_nr text not null,
+    line_nr integer not null,
+    line_text text not null,
     x double precision not null,
     y double precision not null,
     width double precision not null,
@@ -84,7 +85,8 @@ CREATE TABLE lines (
 CREATE TABLE chars (
     document_id text not null,
     page_nr integer not null,
-    char_nr text not null,
+    char_nr integer not null,
+    char_text text not null,
     x double precision not null,
     y double precision not null,
     width double precision not null,
