@@ -19,26 +19,27 @@ from bs4 import BeautifulSoup
 import numpy as np
 import shutil
 import sys
-# sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# app = FastAPI()
+app = FastAPI()
 
-# # mount static files
-# # for docker: /data for both
-# app.mount("/../container_data/data", StaticFiles(directory="../container_data/data"),
-#           name="data")
+# mount static files
+# for docker: /data for both
+# for manual: /../container_data/data and ../container_data/data
+app.mount("/../container_data/data", StaticFiles(directory="../container_data/data"),
+          name="data")
 
-# origins = [
-#     "*"
-# ]
+origins = [
+    "*"
+]
 
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=origins,
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def get_position(element):
@@ -53,7 +54,7 @@ def get_position(element):
     return float(element['xMin']), float(element['yMin']), float(element['xMax']) - float(element['xMin']), float(element['yMax']) - float(element['yMin'])
 
 
-# @app.get("/")
+@app.get("/")
 def root():
     return {"PDFLAT": "API says hi :)"}
 
@@ -87,12 +88,29 @@ def parse_pdf(doc_id, doc_name, doc_path, dataset_id):
         for page_nr, page in enumerate(pdf.pages):
             chars_by_page.append(page.chars)
 
+    doc_folder = doc_path.replace(".pdf", "/")
+    if not os.path.exists(doc_folder):
+        os.mkdir(doc_folder)
     # Extract lines using pdftotext
     for page_nr, doc_page in enumerate(doc_pages):
         page_width, page_height = int(np.floor(float(doc_page['width']))), int(
             np.floor(float(doc_page['height'])))
-        lines = []
+        os.system(
+            f'pdftocairo -png -scale-to-x {page_width} -scale-to-y {page_height} {doc_path} {doc_folder}page')
+        imgs = os.listdir(doc_folder)
 
+        number_of_images = len(imgs)
+        page_number_starting_at_1 = page_nr + 1
+        number_of_digits = len(str(number_of_images))
+        number_of_zeros = number_of_digits - \
+            len(str(page_number_starting_at_1))
+        number_of_zeros = max(0, number_of_zeros)
+        number_of_zeros = int(number_of_zeros)
+        number = '0' * number_of_zeros + str(page_number_starting_at_1)
+
+        image_path = f'{doc_folder}page-{number}.png'
+
+        lines = []
         line_objects = doc_page.select('line')
         for line_nr, line_object in enumerate(line_objects):
             # Create line objects ready for db
@@ -101,14 +119,14 @@ def parse_pdf(doc_id, doc_name, doc_path, dataset_id):
             line = Line(doc_id, page_nr, line_nr, line_text, x, y, width, height)
             lines.append(line)
 
-        pages.append(Page(doc_id, page_nr, page_width, page_height, lines, chars_by_page[page_nr]))
+        pages.append(Page(doc_id, page_nr, image_path, page_width, page_height, lines, chars_by_page[page_nr]))
 
     return Document(doc_id, doc_name, dataset_id, pages)
 
-print(parse_pdf(0, "./container_data/data/64d9c76bfba8950934efb9318e2076e9.pdf", "./container_data/data/"))
+# print(parse_pdf(0, "test-pdf", "./container_data/data/6dc82e492ffa883f8f42163895d246f9.pdf", 0))
 
 
-# @app.post("/upload_pdf/{dataset_id}")
+@app.post("/upload_pdf/{dataset_id}")
 def upload(file_obj: UploadFile, dataset_id: str):
     print('uploading pdf...')
 
@@ -122,7 +140,7 @@ def upload(file_obj: UploadFile, dataset_id: str):
     doc_id = md5_from_string(doc_name + dataset_id)
 
     # Store a copy of the file
-    doc_path = f'/data/{doc_id}.pdf'
+    doc_path = f'../container_data/data/{doc_id}.pdf'
     with open(doc_path, "wb") as buffer:
         shutil.copyfileobj(file_obj.file, buffer)
     print(f'stored file {doc_id}.pdf')
@@ -134,7 +152,7 @@ def upload(file_obj: UploadFile, dataset_id: str):
     return JSONResponse({'document_id': doc_id})
 
 
-# @ app.post("/dataset")
+@ app.post("/dataset")
 async def create_dataset(request: Request):
     data = await request.json()
     name = data.get("name")
@@ -213,22 +231,27 @@ async def create_dataset(request: Request):
 #     return JSONResponse({'labels': get_labels_for_dataset(dataset_id)})
 
 
-# @ app.get("/datasets")
-# def get_datasets():
-#     return JSONResponse({'datasets': get_datasets_from_db()})
+@ app.get("/datasets")
+def get_datasets():
+    return JSONResponse({'datasets': get_datasets_from_db()})
 
 
-# @ app.get("/datasets/{dataset_id}")
-# def get_dataset(dataset_id):
-#     return JSONResponse({'dataset': get_dataset_from_db(dataset_id)})
+@ app.get("/datasets/{dataset_id}")
+def get_dataset(dataset_id):
+    print({'dataset': get_dataset_from_db(dataset_id)})
+    return JSONResponse({'dataset': get_dataset_from_db(dataset_id)})
 
 
-# @ app.get("/get_unlabelled_page/{dataset_id}")
-# def get_unlabelled_page(dataset_id):
-#     page = get_unlabelled_page_from_db(dataset_id)
-#     regions = get_regions_for_page(page['document_id'], page['page_nr'])
-#     return JSONResponse({'page': page, 'regions': regions})
+@ app.get("/get_unlabelled_page/{dataset_id}")
+def get_unlabelled_page(dataset_id):
+    # return get_pages_of_document()
+    page = get_unlabelled_page_from_db(dataset_id)
+    regions = get_regions_for_page(page['document_id'], page['page_nr'])
+    return JSONResponse({'page': page, 'regions': regions})
 
+@ app.get("/get_documents_of_dataset/{dataset_id}")
+def get_documents_of_dataset(dataset_id):
+    return db_get_documents_of_dataset(dataset_id)
 
 # @ app.post("/label_page")
 # async def label_page(request: Request):

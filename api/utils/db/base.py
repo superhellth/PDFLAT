@@ -2,7 +2,8 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 PG_CREDENTIALS = {
-    "host": "pg-db",
+    # "host": "pg-db",
+    "port": 6543,
     "database": "test_db",
     "user": "test_user",
     "password": "PG_PASSWORD"

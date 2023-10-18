@@ -61,6 +61,7 @@ CREATE TABLE documents (
 CREATE TABLE pages (
     document_id text not null,
     page_nr integer not null,
+    image_path text not null,
     page_width double precision not null,
     page_height double precision not null,
     number_lines integer not null,

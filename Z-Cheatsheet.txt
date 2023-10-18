@@ -3,4 +3,4 @@ docker build -t db .
 docker run -p 6543:5432 -e POSTGRES_PASSWORD=PG_PASSWORD db
 
 RUN API:
-uvicorn api:app --reload
+uvicorn api:app --host 127.0.0.1 --port 1337 [--reload]

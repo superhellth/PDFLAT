@@ -58,18 +58,6 @@ def get_datasets_from_db():
 def get_dataset_from_db(dataset_id):
     return get_row_by_id('datasets', dataset_id)
 
-def get_models_from_db():
-    return get_all_rows('models')
-
-def get_model_from_db(model_id):
-    return get_row_by_id('models', model_id)
-
-def get_region_from_db(region_id):
-    return get_row_by_id('regions', region_id)
-
-def get_regions_from_db(region_ids):
-    return get_rows_by_ids('regions', region_ids)
-
 def get_page_from_db(page_id):
     document_id, page_nr = page_id.split('-')
 
@@ -96,32 +84,26 @@ def get_labels_for_dataset(dataset_id):
     return dataset['labels']
 
 # special cases
-
-def get_nodes_in_region(document_id, page_nr, x_min, y_min, x_max, y_max):
-    # get all nodes from database that are in this region of the page
-
-    # Connect to the database
+def get_pages_of_document(document_id):
     conn, cur = connect(dicts=True)
-
-    # Define the SQL query to get the data
-
-    sql = """SELECT * FROM nodes WHERE document_id = %s AND page_nr = %s AND x_min >= %s AND x_max <= %s AND y_min >= %s AND y_max <= %s;"""
-
-    # Execute the SQL query with the data as parameters
-    cur.execute(sql, (document_id, page_nr, x_min, x_max, y_min, y_max))
-
-    nodes = list(cur.fetchall())
-
+    sql = "SELECT * FROM pages WHERE document_id = %s"
+    values = (document_id)
+    cur.execute(sql, values)
+    res = cur.fetchall()
     close(conn, cur)
+    if res:
+        return res
+    raise Exception(f'No page with document_id {document_id} in table pages')
 
-    for node in nodes:
-        node['x_center'] = node['x_min'] + node['width']/2
-        node['y_center'] = node['y_min'] + node['height']/2
-
-    nodes_df = pd.DataFrame(nodes)
-
-    return nodes_df
-
+def db_get_documents_of_dataset(dataset_id):
+    conn, cur = connect()
+    sql = "SELECT * FROM documents WHERE dataset_id = %s"
+    cur.execute(sql, (dataset_id,))
+    res = list(cur.fetchall())
+    close(conn, cur)
+    if res:
+        return res
+    raise Exception(f'No docuemnt with dataset_id {dataset_id} in table documents')
 
 def get_regions_in_region(document_id, page_nr, x_min, y_min, x_max, y_max):
     # get all regions in the database that are in this region of the page
@@ -146,26 +128,6 @@ def get_regions_in_region(document_id, page_nr, x_min, y_min, x_max, y_max):
     close(conn, cur)
 
     return regions
-
-
-
-def get_dataset_model_from_db(model_id, dataset_id):
-    # Connect to the database
-    conn, cur = connect(dicts=True)
-
-    # Define the SQL query to get the data
-    sql = """SELECT * FROM dataset_models WHERE model_id = %s AND dataset_id = %s;"""
-
-    # Execute the SQL query with the data as parameters
-    cur.execute(sql, (model_id, dataset_id))
-
-    dataset_model = cur.fetchone()
-    if dataset_model is not None:
-        dataset_model = dict(dataset_model)
-
-    close(conn, cur)
-
-    return dataset_model
 
 
 def get_unlabelled_page_from_db(dataset_id):
@@ -218,30 +180,6 @@ def get_all_labelled_pages_from_db(dataset_id):
     if pages:
         return pages
     raise Exception(f'No labelled pages in dataset {dataset_id}')
-
-
-def get_nodes_for_page(document_id, page_nr):
-    # Connect to the database
-    conn, cur = connect(dicts=True)
-
-    # Define the SQL query to get the data
-
-    sql = """SELECT * FROM nodes WHERE document_id = %s AND page_nr = %s;"""
-
-    # Execute the SQL query with the data as parameters
-    cur.execute(sql, (document_id, page_nr))
-
-    nodes = list(cur.fetchall())
-
-    close(conn, cur)
-
-    for node in nodes:
-        node['x_center'] = node['x_min'] + node['width']/2
-        node['y_center'] = node['y_min'] + node['height']/2
-
-    nodes_df = pd.DataFrame(nodes)
-
-    return nodes_df
 
 
 

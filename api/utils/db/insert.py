@@ -1,8 +1,8 @@
-from .base import connect, close
 from utils.document import Document
 from utils.page import Page
 from utils.line import Line
 from psycopg2.errors import UniqueViolation
+from .base import connect, close
 
 def insert_document(document: Document):
     """Insert a document into the database. Including adding the pages, lines and chars
@@ -18,7 +18,7 @@ def insert_document(document: Document):
     conn, cur = connect()
 
     # Insert document
-    sql = f"INSERT INTO documents (document_id, title, dataset_id) VALUES (%s, %s, %s);"
+    sql = "INSERT INTO documents (document_id, title, dataset_id) VALUES (%s, %s, %s);"
     values = (document.document_id, document.title, document.dataset_id)
     try:
         cur.execute(sql, values)
@@ -34,11 +34,20 @@ def insert_document(document: Document):
     return True
 
 def insert_dataset(dataset_id, dataset_name):
+    """Insert dataset into the database.
+
+    Args:
+        dataset_id (int): ID of the dataset to index.
+        dataset_name (str): Name of the dataset to index.
+
+    Returns:
+        bool: Whether or not the insert was successful.
+    """
     # Connect to the database
     conn, cur = connect()
 
     # Insert dataset
-    sql = f"INSERT INTO datasets (dataset_id, name) VALUES (%s, %s);"
+    sql = "INSERT INTO datasets (dataset_id, name) VALUES (%s, %s);"
     values = (dataset_id, dataset_name)
     try:
         cur.execute(sql, values)
@@ -59,8 +68,8 @@ def insert_page(page: Page, cur):
         bool: Whether or not the insert was successful.
     """
     # Insert page
-    sql = f"INSERT INTO pages (document_id, page_nr, page_width, page_height, number_lines, number_chars) VALUES (%s, %s, %s, %s, %s, %s);"
-    values = (page.document_id, page.page_nr, page.width, page.height, page.number_lines, page.number_chars)
+    sql = "INSERT INTO pages (document_id, page_nr, image_path, page_width, page_height, number_lines, number_chars) VALUES (%s, %s, %s, %s, %s, %s, %s);"
+    values = (page.document_id, page.page_nr, page.image_path, page.width, page.height, page.number_lines, page.number_chars)
     try:
         cur.execute(sql, values)
     except UniqueViolation as e:
@@ -72,8 +81,8 @@ def insert_page(page: Page, cur):
             return False
 
     # Insert chars
-    for char in page.chars:
-        if not insert_char(char, cur):
+    for char_nr, char in enumerate(page.chars):
+        if not insert_char(page.document_id, page.page_nr, char_nr, char, cur):
             return False
 
     return True
@@ -88,7 +97,7 @@ def insert_line(line: Line, cur):
     Returns:
         bool: Whether or not the insert was successful.
     """
-    sql = f"INSERT INTO lines (document_id, page_nr, line_nr, line_text, x, y, width, height) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);"
+    sql = "INSERT INTO lines (document_id, page_nr, line_nr, line_text, x, y, width, height) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);"
     values = (line.document_id, line.page_nr, line.line_nr, line.text, line.x, line.y, line.width, line.height)
     try:
         cur.execute(sql, values)
@@ -110,7 +119,7 @@ def insert_char(document_id, page_nr, char_nr, char, cur):
     Returns:
         bool: Whether or not the insert was successful.
     """
-    sql = f"INSERT INTO chars (document_id, page_nr, char_nr, char_text, x, y, width, height) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);"
+    sql = "INSERT INTO chars (document_id, page_nr, char_nr, char_text, x, y, width, height) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);"
     values = (document_id, page_nr, char_nr, char["text"], char["x0"], char["y0"], char["width"], char["height"])
     try:
         cur.execute(sql, values)

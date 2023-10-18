@@ -1,8 +1,9 @@
 class Page:
 
-    def __init__(self, document_id, page_nr, width, height, lines, chars) -> None:
+    def __init__(self, document_id, page_nr, image_path, width, height, lines, chars) -> None:
         self.document_id = document_id
         self.page_nr = page_nr
+        self.image_path = image_path
         self.width = width
         self.height = height
         self.lines = lines
