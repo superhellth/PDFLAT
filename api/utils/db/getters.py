@@ -83,11 +83,21 @@ def get_labels_for_dataset(dataset_id):
     dataset = get_dataset_from_db(dataset_id)
     return dataset['labels']
 
-# special cases
+def get_document_from_db(document_id):
+    conn, cur = connect(dicts=True)
+    sql = "SELECT * FROM documents WHERE document_id = %s"
+    values = (document_id,)
+    cur.execute(sql, values)
+    res = cur.fetchall()
+    close(conn, cur)
+    if res:
+        return res
+    raise Exception(f'No document with document_id {document_id} in table pages')
+
 def get_pages_of_document(document_id):
     conn, cur = connect(dicts=True)
     sql = "SELECT * FROM pages WHERE document_id = %s"
-    values = (document_id)
+    values = (document_id,)
     cur.execute(sql, values)
     res = cur.fetchall()
     close(conn, cur)
@@ -100,6 +110,7 @@ def db_get_documents_of_dataset(dataset_id):
     sql = "SELECT * FROM documents WHERE dataset_id = %s"
     cur.execute(sql, (dataset_id,))
     res = list(cur.fetchall())
+    print(res)
     close(conn, cur)
     if res:
         return res

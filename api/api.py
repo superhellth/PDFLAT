@@ -91,6 +91,10 @@ def parse_pdf(doc_id, doc_name, doc_path, dataset_id):
     doc_folder = doc_path.replace(".pdf", "/")
     if not os.path.exists(doc_folder):
         os.mkdir(doc_folder)
+
+    if len(chars_by_page) != len(doc_pages):
+        return None
+
     # Extract lines using pdftotext
     for page_nr, doc_page in enumerate(doc_pages):
         page_width, page_height = int(np.floor(float(doc_page['width']))), int(
@@ -146,7 +150,10 @@ def upload(file_obj: UploadFile, dataset_id: str):
     print(f'stored file {doc_id}.pdf')
 
     # Insert the document into the database
-    if not insert_document(parse_pdf(doc_id, doc_name, doc_path, dataset_id)):
+    parsed_pdf = parse_pdf(doc_id, doc_name, doc_path, dataset_id)
+    if parsed_pdf is None:
+        return {'success': False, 'message': 'document has nothing to annotate', 'doc_id': doc_id}
+    elif not insert_document(parsed_pdf):
         return {'success': False, 'message': 'document already exists', 'doc_id': doc_id}
 
     return JSONResponse({'document_id': doc_id})
@@ -235,23 +242,40 @@ async def create_dataset(request: Request):
 def get_datasets():
     return JSONResponse({'datasets': get_datasets_from_db()})
 
-
 @ app.get("/datasets/{dataset_id}")
 def get_dataset(dataset_id):
     print({'dataset': get_dataset_from_db(dataset_id)})
     return JSONResponse({'dataset': get_dataset_from_db(dataset_id)})
 
+@ app.get("/documents/{document_id}")
+def get_document(document_id):
+    document = dict(get_document_from_db(document_id)[0])
+    pages = get_pages_of_document(document_id)
+    pages = [dict(page) for page in pages]
+    return JSONResponse({'document': document, "pages": pages}) # TODO: add lines and chars
 
-@ app.get("/get_unlabelled_page/{dataset_id}")
-def get_unlabelled_page(dataset_id):
-    # return get_pages_of_document()
-    page = get_unlabelled_page_from_db(dataset_id)
-    regions = get_regions_for_page(page['document_id'], page['page_nr'])
-    return JSONResponse({'page': page, 'regions': regions})
+# @ app.get("/get_unlabelled_page/{dataset_id}")
+# def get_unlabelled_page(dataset_id):
+#     # return get_pages_of_document()
+#     page = get_unlabelled_page_from_db(dataset_id)
+#     regions = get_regions_for_page(page['document_id'], page['page_nr'])
+#     return JSONResponse({'page': page, 'regions': regions})
 
 @ app.get("/get_documents_of_dataset/{dataset_id}")
 def get_documents_of_dataset(dataset_id):
-    return db_get_documents_of_dataset(dataset_id)
+    try:
+        res = JSONResponse({"documents": db_get_documents_of_dataset(dataset_id)})
+    except Exception:
+        return JSONResponse({"documents": []})
+    return res
+
+@ app.post("/delete_document")
+async def delete_document(request: Request):
+    data = await request.json()
+    document_id = data.get("document_id")
+    if delete_document_from_db(document_id):
+        return {'success': True, 'message': 'Document, pages, lines and chars deleted'}
+    return {'success': False, 'message': 'Nothing with this documentID in db'}
 
 # @ app.post("/label_page")
 # async def label_page(request: Request):

@@ -5,21 +5,41 @@
   let file: any;
   let documents_ready: boolean = false;
   let documents: Array<any>;
+  let latest_response: any = {"success": false, "message": "Nothing uploaded yet"};
+
 
   onMount(async () => {
+    updateDocList()
+  });
+
+  async function updateDocList() {
     let response = await fetch(
       `http://127.0.0.1:1337/get_documents_of_dataset/${data.dataset.dataset_id}`
     );
     documents = await response.json();
-    documents = Array.from(documents[0]);
+    documents = Array.from(documents["documents"]);
     documents_ready = true;
-  });
+  }
+
+  async function deleteDocument(documentID: any) {
+    const requestBody = JSON.stringify({
+      document_id: documentID,
+    });
+    // send request to API
+    const result = await fetch(`http://localhost:1337/delete_document`, {
+      method: "POST",
+      body: requestBody,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const jsonData = await result.json();
+    updateDocList()
+  }
 
   const uploadFile = async () => {
     const formData = new FormData();
     formData.append("file_obj", file);
-
-    console.log(formData);
 
     const response = await fetch(
       `http://localhost:1337/upload_pdf/${data.dataset.dataset_id}`,
@@ -30,7 +50,8 @@
     );
 
     const jsonData = await response.json();
-    console.log(jsonData); // Handle the response as per your requirements
+    latest_response = jsonData;
+    updateDocList()
   };
 </script>
 
@@ -48,22 +69,37 @@
   />
 
   <button on:click={uploadFile}>Upload</button>
+  {#if latest_response["success"] == false}
+    <p>{latest_response["message"]}</p>
+  {:else}
+    <p>Uploaded document with ID: {latest_response["document_id"]}</p>
+  {/if}
 </div>
 
 <div>
   <h2>Current Documents in Dataset:</h2>
   {#if documents_ready}
-    {#each documents as document}
+    {#if documents.length > 0}
       <div>
         <ul>
-          <li>
-            <h3>{document}</h3>
-            <a rel="external" href="/dataset/{data.dataset.dataset_id}/annotate"
-              >Annotate file</a
-            >
-          </li>
+          {#each documents as document}
+            <li>
+              <h3>{document[2]}</h3>
+              <h5>ID: {document[0]}</h5>
+              <button on:click={() => deleteDocument(document[0])} >
+                Delete
+              </button>
+              <a
+                rel="external"
+                href="/dataset/{data.dataset.dataset_id}/annotate/{document[0]}"
+                >Annotate file</a
+              >
+            </li>
+          {/each}
         </ul>
       </div>
-    {/each}
+    {:else}
+      <h3>No documents uploaded</h3>
+    {/if}
   {/if}
 </div>

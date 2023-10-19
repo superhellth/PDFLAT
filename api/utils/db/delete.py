@@ -22,33 +22,41 @@ def delete_row_by_id(table, id):
 def delete_region_from_db(region_id):
     return delete_row_by_id('regions', region_id)
 
-def delete_document_from_db(document_id):
-    return delete_row_by_id('documents', document_id)
-
 def delete_dataset_from_db(dataset_id):
     return delete_row_by_id('datasets', dataset_id)
 
 def delete_model_from_db(model_id):
     return delete_row_by_id('models', model_id)
 
-def delete_page_from_db(document_id, page_nr):
+def delete_document_from_db(document_id):
     # Connect to the database
     conn, cur = connect()
 
     # Define the SQL query to get the data
-    sql = """DELETE FROM pages WHERE document_id = %s AND page_nr = %s;"""
+    sql = """DELETE FROM documents WHERE document_id = %s;"""
 
     # Execute the SQL query with the data as parameters
-    cur.execute(sql, (document_id, page_nr))
-
+    cur.execute(sql, (document_id,))
     rowcount = cur.rowcount
+
+    sql = """DELETE FROM pages WHERE document_id = %s;"""
+    cur.execute(sql, (document_id,))
+    rowcount += cur.rowcount
+
+    sql = """DELETE FROM lines WHERE document_id = %s;"""
+    cur.execute(sql, (document_id,))
+    rowcount += cur.rowcount
+
+    sql = """DELETE FROM chars WHERE document_id = %s;"""
+    cur.execute(sql, (document_id,))
+    rowcount += cur.rowcount
+    
     close(conn, cur)
 
     # check if row was deleted
     if rowcount == 0:
         return False
     return True
-    
 
 def remove_label_for_dataset(dataset_id, label):
     # Connect to the database
