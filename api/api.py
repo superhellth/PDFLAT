@@ -26,7 +26,7 @@ app = FastAPI()
 # mount static files
 # for docker: /data for both
 # for manual: /../container_data/data and ../container_data/data
-app.mount("/../container_data/data", StaticFiles(directory="../container_data/data"),
+app.mount("/data", StaticFiles(directory="../container_data/data"),
           name="data")
 
 origins = [
@@ -112,7 +112,7 @@ def parse_pdf(doc_id, doc_name, doc_path, dataset_id):
         number_of_zeros = int(number_of_zeros)
         number = '0' * number_of_zeros + str(page_number_starting_at_1)
 
-        image_path = f'{doc_folder}page-{number}.png'
+        image_path = f'/data/{doc_id}/page-{number}.png'
 
         lines = []
         line_objects = doc_page.select('line')
@@ -252,7 +252,16 @@ def get_document(document_id):
     document = dict(get_document_from_db(document_id)[0])
     pages = get_pages_of_document(document_id)
     pages = [dict(page) for page in pages]
-    return JSONResponse({'document': document, "pages": pages}) # TODO: add lines and chars
+    return JSONResponse({'document': document, "pages": pages})
+
+@ app.get("/pages/")
+def get_page(document_id, page_nr):
+    page = dict(get_page_from_db(document_id, page_nr))
+    lines = get_lines_of_page(document_id, page_nr)
+    lines = [dict(line) for line in lines]
+    chars = get_chars_of_page(document_id, page_nr)
+    chars = [dict(char) for char in chars]
+    return JSONResponse({'page': page, "lines": lines, "chars": chars})
 
 # @ app.get("/get_unlabelled_page/{dataset_id}")
 # def get_unlabelled_page(dataset_id):

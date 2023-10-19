@@ -10,6 +10,7 @@
   onMount(async () => {
     let datasetsJson = await apiCallFrontend("datasets");
     datasets = datasetsJson["datasets"];
+    console.log(datasets)
   });
 
   async function createDataset() {

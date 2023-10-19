@@ -4,6 +4,6 @@ export async function load({ fetch, params }) {
 
     response = await fetch(`http://127.0.0.1:1337/documents/${params.document_id}`);
     json = await response.json();
-    console.log(json)
-    return { dataset: json.dataset, document: json.document };
+    // console.log(json)
+    return { dataset: json.dataset, document: json };
 }

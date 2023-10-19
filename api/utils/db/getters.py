@@ -21,22 +21,6 @@ def get_row_by_id(table, id):
         return row
     raise Exception(f'No row with id {id} in table {table}')
 
-# retrieve by ids function
-def get_rows_by_ids(table, ids):
-    # Connect to the database
-    conn, cur = connect(dicts=True)
-
-    # Define the SQL query to get the data
-    sql = f"""SELECT * FROM {table} WHERE id = ANY(%s);"""
-
-    # Execute the SQL query with the data as parameters
-    cur.execute(sql, (ids,))
-
-    rows = list(cur.fetchall())
-    close(conn, cur)
-
-    return rows
-
 def get_all_rows(table):
     # Connect to the database
     conn, cur = connect(dicts=True)
@@ -58,9 +42,7 @@ def get_datasets_from_db():
 def get_dataset_from_db(dataset_id):
     return get_row_by_id('datasets', dataset_id)
 
-def get_page_from_db(page_id):
-    document_id, page_nr = page_id.split('-')
-
+def get_page_from_db(document_id, page_nr):
     # Connect to the database
     conn, cur = connect(dicts=True)
 
@@ -104,6 +86,28 @@ def get_pages_of_document(document_id):
     if res:
         return res
     raise Exception(f'No page with document_id {document_id} in table pages')
+
+def get_lines_of_page(document_id, page_nr):
+    conn, cur = connect(dicts=True)
+    sql = "SELECT * FROM lines WHERE document_id = %s and page_nr = %s"
+    values = (document_id, page_nr)
+    cur.execute(sql, values)
+    res = cur.fetchall()
+    close(conn, cur)
+    if res:
+        return res
+    raise Exception(f'No line with (document_id, page_nr) {document_id}, {page_nr} in table lines')
+
+def get_chars_of_page(document_id, page_nr):
+    conn, cur = connect(dicts=True)
+    sql = "SELECT * FROM chars WHERE document_id = %s and page_nr = %s"
+    values = (document_id, page_nr)
+    cur.execute(sql, values)
+    res = cur.fetchall()
+    close(conn, cur)
+    if res:
+        return res
+    raise Exception(f'No char with (document_id, page_nr) {document_id}, {page_nr} in table chars')
 
 def db_get_documents_of_dataset(dataset_id):
     conn, cur = connect()
