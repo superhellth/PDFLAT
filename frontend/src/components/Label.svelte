@@ -6,10 +6,12 @@
   export let setColor;
 
   async function setLabel() {
-    console.log(region.region_id)
+    console.log(region.line_nr)
     console.log(id)
     const requestBody = JSON.stringify({
-      region_id: region.region_id,
+      document_id: region.document_id,
+      page_nr: region.page_nr,
+      line_nr: region.line_nr,
       label_id: id,
     });
     // send request to API

@@ -26,7 +26,7 @@ border-gray-400
 export const LABELS = {
   text: {
     id: 0,
-    color: 'pink'
+    color: 'blue'
   },
   title: {
     id: 1,
@@ -38,26 +38,22 @@ export const LABELS = {
   },
   figure: {
     id: 3,
-    color: 'blue'
+    color: 'purple'
   },
   list: {
     id: 4,
-    color: 'purple'
+    color: 'orange'
   },
   caption: {
     id: 5,
-    color: 'orange'
+    color: 'yellow'
   },
   page_nr: {
     id: 6,
-    color: 'yellow'
+    color: 'sky'
   },
   footnote: {
     id: 7,
-    color: 'sky'
-  },
-  formular: {
-    id: 8,
     color: 'lime'
   },
   none: {

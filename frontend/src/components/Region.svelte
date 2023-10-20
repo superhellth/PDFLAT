@@ -31,15 +31,15 @@
   on:mouseenter={() => (hover = true)}
   on:mouseleave={() => (hover = false)}
   on:click={() => {
-    selectRegion(region.region_id);
+    selectRegion(region["line_nr"]);
   }}
   on:keydown={() => {}}
   class="absolute bg-{color}-200 border-{color}-400 bg-opacity-30 border-{selected ? "4" : "2"} {labelled
     ? 'z-[15]'
     : 'z-20'} hover:z-30 rounded-md outline-0 outline-[rgba(255,255,255,0)] hover:outline-[9999px] transition-all duration-300 hover:outline hover:outline-[rgba(255,255,255,0.8)]"
   style="
-top: {region.y_min - 3}px;
-left: {region.x_min - 3}px;
+top: {region.y - 3}px;
+left: {region.x - 3}px;
 width: {region.width + 9}px;
 height: {region.height + 6}px;
 "

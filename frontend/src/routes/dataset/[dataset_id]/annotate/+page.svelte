@@ -207,19 +207,19 @@
           createRegion();
         }}
       />
-      <div
-        class="bg-gray-300 bg-opacity-30 border-gray-200 border-2 rounded-md absolute z-50 pointer-events-none"
-        style="top:{markerStart?.y}px; left:{markerStart?.x}px; width:{markerEnd?.x -
-          markerStart?.x}px; height:{markerEnd?.y - markerStart?.y}px;"
-      />
-      <div class="flex w-full items-center justify-center my-4 gap-4">
-        <button class="px-4 py-2 flex bg-red-200 border-2 cursor-pointer border-red-300 rounded-md" on:click={deletePage}
-          >delete page</button
-        >
-        <button class="px-4 py-2 bg-blue-200 border-2 cursor-pointer border-blue-300 rounded-md" on:click={nextPage}
-          >next page</button
-        >
-      </div>
+        <div
+          class="bg-gray-300 bg-opacity-30 border-gray-200 border-2 rounded-md absolute z-50 pointer-events-none"
+          style="top:{markerStart?.y}px; left:{markerStart?.x}px; width:{markerEnd?.x -
+            markerStart?.x}px; height:{markerEnd?.y - markerStart?.y}px;"
+        />
+        <div class="flex w-full items-center justify-center my-4 gap-4">
+          <button class="px-4 py-2 flex bg-red-200 border-2 cursor-pointer border-red-300 rounded-md" on:click={deletePage}
+            >delete page</button
+          >
+          <button class="px-4 py-2 bg-blue-200 border-2 cursor-pointer border-blue-300 rounded-md" on:click={nextPage}
+            >next page</button
+          >
+        </div>
     </div>
   {/if}
 </div>

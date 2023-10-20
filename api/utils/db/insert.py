@@ -1,6 +1,7 @@
 from utils.document import Document
 from utils.page import Page
 from utils.line import Line
+from utils.db.getters import get_highest_line_nr
 from psycopg2.errors import UniqueViolation
 from .base import connect, close
 
@@ -127,3 +128,17 @@ def insert_char(document_id, page_nr, char_nr, char, cur):
         return False
 
     return True
+
+def create_and_insert_line(document_id, page_nr, text, x, y, width, height):
+    conn, cur = connect()
+    line_nr = get_highest_line_nr(document_id, page_nr) + 1
+    sql = "INSERT INTO lines (document_id, page_nr, line_nr, line_text, x, y, width, height, merged) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);"
+    values = (document_id, page_nr, line_nr, text, x, y, width, height, True)
+    try:
+        cur.execute(sql, values)
+    except UniqueViolation as e:
+        return False, None
+    
+    close(conn, cur)
+
+    return True, line_nr

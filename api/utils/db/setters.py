@@ -34,6 +34,20 @@ def label_region_in_db(region_id, label):
 
 # spetial cases
 
+def label_line_in_db(document_id, page_nr, line_nr, label_id):
+    # Connect to the database
+    conn, cur = connect()
+
+    # Define the SQL query to get the data
+    sql = """UPDATE lines SET label = %s WHERE document_id = %s AND page_nr = %s and line_nr = %s;"""
+
+    # Execute the SQL query with the data as parameters
+    cur.execute(sql, (label_id, document_id, page_nr, line_nr))
+
+    close(conn, cur)
+
+    return True
+
 
 def label_page_in_db(document_id, page_nr):
     # Connect to the database

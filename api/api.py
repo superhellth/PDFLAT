@@ -193,44 +193,42 @@ async def create_dataset(request: Request):
 #     return JSONResponse({'region': region})
 
 
-# @ app.post("/label_region")
-# async def label_region(request: Request):
-#     data = await request.json()
-#     region_id = data.get("region_id")
-#     label_id = data.get("label_id")
-#     label_region_in_db(region_id, label_id)
-#     return {'success': True, 'message': 'region labeled', 'region_id': region_id, 'label_id': label_id}
+@ app.post("/label_region")
+async def label_region(request: Request):
+    data = await request.json()
+    document_id = data.get("document_id")
+    page_nr = data.get("page_nr")
+    line_nr = data.get("line_nr")
+    label_id = data.get("label_id")
+    label_line_in_db(document_id, page_nr, line_nr, label_id)
+    return {'success': True, 'message': 'region labeled', 'label_id': label_id}
 
 
-# @ app.delete("/region/{region_id}")
-# def delete_region(region_id):
-#     if delete_region_from_db(region_id):
-#         return {'success': True, 'message': 'region deleted', 'region_id': region_id}
-#     return {'success': False, 'message': 'delete failed', 'region_id': region_id}
+@ app.delete("/region/")
+def delete_region(document_id, page_nr, line_nr):
+    if delete_line_from_db(document_id, page_nr, line_nr):
+        return {'success': True, 'message': 'region deleted'}
+    return {'success': False, 'message': 'delete failed'}
 
 
-# @ app.post("/merge_regions")
-# async def merge_regions(request: Request):
-#     data = await request.json()
-#     region_ids = data.get("region_ids")
-#     regions = [get_region_from_db(region_id) for region_id in region_ids]
-#     # TODO: implement this with a single db call
-#     document_id = regions[0]['document_id']
-#     page_nr = regions[0]['page_nr']
-#     x_min = min([region['x_min'] for region in regions])
-#     y_min = min([region['y_min'] for region in regions])
-#     x_max = max([region['x_max'] for region in regions])
-#     y_max = max([region['y_max'] for region in regions])
+@ app.post("/merge_lines")
+async def merge_lines(request: Request):
+    data = await request.json()
+    line_nrs = data.get("region_ids")
+    document_id = data.get("document_id")
+    page_nr = data.get("page_nr")
+    regions = [get_line_from_db(document_id, page_nr, line_nr) for line_nr in line_nrs]
+    x = min([region['x'] for region in regions])
+    y = min([region['y'] for region in regions])
+    width = max([region["width"] for region in regions])
+    height = max([region["y"] + region["height"] for region in regions]) - y
+    text = "\n".join([region['line_text'] for region in regions])
 
-# #    for region_id in region_ids:
-# #        delete_region_from_db(region_id)
+    success, line_nr = create_and_insert_line(document_id, page_nr, text, x, y, width, height)
 
-#     success, region_id, delete_region_ids = create_and_insert_region(
-#         document_id, page_nr, x_min, y_min, x_max, y_max)
-
-#     if success:
-#         return {'success': True, 'message': 'regions merged', 'region': get_region_from_db(region_id), 'delete_region_ids': delete_region_ids}
-#     return {'success': False, 'message': 'regions could not be merged', 'region': get_region_from_db(region_id)}
+    if success:
+        return {'success': True, 'message': 'regions merged', 'region': get_line_from_db(document_id, page_nr, line_nr), "delete_line_nrs": line_nrs}
+    return {'success': False, 'message': 'regions could not be merged'}
 
 
 # @ app.get("/get_labels")

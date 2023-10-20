@@ -58,7 +58,7 @@ def get_page_from_db(document_id, page_nr):
 
     if page:
         return page
-    raise Exception(f'No page with id {page_id} in table pages')
+    raise Exception(f'No page with id {page_nr} in table pages')
 
 
 def get_labels_for_dataset(dataset_id):
@@ -97,6 +97,17 @@ def get_lines_of_page(document_id, page_nr):
     if res:
         return res
     raise Exception(f'No line with (document_id, page_nr) {document_id}, {page_nr} in table lines')
+
+def get_line_from_db(document_id, page_nr, line_nr):
+    conn, cur = connect(dicts=True)
+    sql = "SELECT * FROM lines WHERE document_id = %s and page_nr = %s and line_nr = %s"
+    values = (document_id, page_nr, line_nr)
+    cur.execute(sql, values)
+    res = cur.fetchone()
+    close(conn, cur)
+    if res:
+        return res
+    raise Exception(f'No line with (document_id, page_nr, line_nr) {document_id}, {page_nr}, {line_nr} in table lines')
 
 def get_chars_of_page(document_id, page_nr):
     conn, cur = connect(dicts=True)
@@ -217,40 +228,6 @@ def get_regions_for_page(document_id, page_nr):
 
     return regions
 
-
-def get_region(region_id):
-    # Connect to the database
-    conn, cur = connect(dicts=True)
-
-    # Define the SQL query to get the data
-
-    sql = """
-        SELECT r.graphs, r.document_id, r.page_nr, r.region_id, r.x_min, r.x_max, r.y_min, r.y_max, r.label,
-            (
-                SELECT json_agg(json_build_object(
-                            'node_nr', n.node_nr,
-                            'x_min', n.x_min,
-                            'x_max', n.x_max,
-                            'y_min', n.y_min,
-                            'y_max', n.y_max,
-                            'features', n.features
-                        ))
-                FROM nodes n
-                WHERE r.document_id = n.document_id AND r.page_nr = n.page_nr
-            ) AS nodes
-        FROM regions r
-        WHERE r.region_id = %s
-    """
-
-    # Execute the SQL query with the data as parameters
-    cur.execute(sql, (region_id,))
-
-    region = cur.fetchone()
-
-    close(conn, cur)
-
-    return region
-
 def get_labelled_region_ids_for_dataset(dataset_id):
     # Connect to the database
     conn, cur = connect()
@@ -314,3 +291,20 @@ def get_next_label_id_for_dataset(dataset_id):
     # get the next label id
     next_label_id = max(label_ids) + 1
     return next_label_id
+
+def get_highest_line_nr(document_id, page_nr):
+     # Connect to the database
+    conn, cur = connect(dicts=True)
+
+    # Define the SQL query to get the data
+
+    sql = """SELECT MAX(line_nr) from lines WHERE document_id = %s AND page_nr = %s;"""
+
+    # Execute the SQL query with the data as parameters
+    cur.execute(sql, (document_id, page_nr))
+
+    highest_number = dict(cur.fetchone())
+
+    close(conn, cur)
+
+    return highest_number["max"]

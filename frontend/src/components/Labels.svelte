@@ -23,13 +23,13 @@
   >
     <button
       class="bg-red-400 flex items-center rounded-md px-2 py-1"
-      on:click={() => deleteRegion(region.region_id)}
+      on:click={() => deleteRegion(region.line_nr)}
     >
       delete
     </button>
     <button
       class="bg-blue-400 flex items-center rounded-md px-2 py-1"
-      on:click={() => mergeRegions(region.region_id)}
+      on:click={() => mergeRegions(region.line_nr)}
     >
       merge
     </button>
