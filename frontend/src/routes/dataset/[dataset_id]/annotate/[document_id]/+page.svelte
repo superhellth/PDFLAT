@@ -1,14 +1,16 @@
 <script lang="ts">
+  import RegionOverlay from "./../../../../../components/RegionOverlay.svelte";
   export let data;
   import { LABELS } from "../../../../../stores/LABELS.js";
-  import Region from "../../../../../components/Region.svelte";
   import { onMount } from "svelte";
+  import Region from "$lib/region";
 
   let currentPage: any = null;
+  let activeType: string = "line";
   let lines: any = null;
   let chars: any = null;
-  let regions: any = [];
-  let selected_regions: any = [];
+  let regions: Region[] = [];
+  let selectedRegions: any = [];
 
   let mousePos = { x: 0, y: 0 };
   let markerStart = { x: 0, y: 0 };
@@ -27,43 +29,65 @@
   }
 
   async function loadPage(pageNr: any) {
-    currentPage = data.document.pages[pageNr]
-    loadRegions(pageNr)
+    currentPage = data.document.pages[pageNr];
+    loadRegions(pageNr);
   }
 
   async function loadRegions(pageNr: any) {
-    let response = await fetch(`http://127.0.0.1:1337/pages/?document_id=${data.document.document.document_id}&page_nr=${pageNr}`)
+    let response = await fetch(
+      `http://127.0.0.1:1337/pages/?document_id=${data.document.document.document_id}&page_nr=${pageNr}`
+    );
     let json = await response.json();
-    lines = json["lines"]
-    regions = lines
-    chars = json["chars"]
+    // regions = [];
+    if (json["success"] == true) {
+      lines = json["lines"].map((obj) => new Region("line", obj));
+      chars = json["chars"].map((obj) => new Region("char", obj));
+      if (activeType == "line") {
+        regions = lines;
+      } else {
+        regions = chars;
+      }
+    } else {
+      lines = [];
+      chars = [];
+      regions = [];
+    }
+    console.log("Loaded page");
+    for (var region of regions) {
+      if (region.getLabel() != -1) {
+        console.log(region);
+      }
+    }
+    selectedRegions = [];
   }
 
-  async function selectRegion(line_nr: any) {
-    if (selected_regions.indexOf(line_nr) !== -1) {
-      selected_regions = selected_regions.filter((r) => r !== line_nr);
-      console.log(selected_regions)
+  async function selectRegion(number: any) {
+    console.log("Select");
+    if (selectedRegions.indexOf(number) !== -1) {
+      selectedRegions = selectedRegions.filter((r) => r !== number);
+      console.log(selectedRegions);
       return;
     }
-    if (selected_regions.length > 0) {
-      let newRegion = await mergeRegions(line_nr);
-      selected_regions = [newRegion.line_nr];
+    if (selectedRegions.length > 0) {
+      let newRegion = await mergeRegions(number);
+      newRegion = new Region(activeType, newRegion);
+      selectedRegions = [newRegion.getNumber()];
     } else {
-      selected_regions = [...selected_regions, line_nr];
+      selectedRegions = [...selectedRegions, number];
     }
-    console.log(selected_regions)
+    console.log(selectedRegions);
   }
 
   async function mergeRegions(line_nr: any) {
     console.log("merge regions");
     // add region_id to selected regions if its not in there yet
-    if (selected_regions.indexOf(line_nr) === -1) {
-      selected_regions = [...selected_regions, line_nr];
+    if (selectedRegions.indexOf(line_nr) === -1) {
+      selectedRegions = [...selectedRegions, line_nr];
     }
-    console.log(selected_regions)
+    console.log(selectedRegions);
     // call merge regions api endpoint
     const requestBody = JSON.stringify({
-      region_ids: selected_regions,
+      region_ids: selectedRegions,
       document_id: data.document.document.document_id,
       page_nr: currentPage["page_nr"],
     });
@@ -78,24 +102,31 @@
 
     // remove all deleted from regions
     regions = regions.filter(
-      (r) => !jsonData["delete_line_nrs"].includes(r.line_nr)
-      );
-    selected_regions = []
+      (r) => !jsonData["delete_line_nrs"].includes(r.getNumber())
+    );
+    selectedRegions = [];
 
     // add new region to regions
-    regions = [...regions, jsonData.region];
+    regions = [...regions, new Region(activeType, jsonData.region)];
 
     // remove all regions from selected regions
-    selected_regions = [];
+    selectedRegions = [];
     return jsonData.region;
   }
 
-  async function deleteRegion(line_nr: any) {
-    await fetch(`http://localhost:1337/region?document_id=${data.document.document.document_id}&page_nr=${currentPage["page_nr"]}&line_nr=${line_nr}`, {
-      method: "DELETE",
-    });
-    regions = regions.filter((r) => r.line_nr !== line_nr);
-    selected_regions = selected_regions.filter((r) => r !== line_nr);
+  async function deleteRegion(region: Region) {
+    await fetch(
+      `http://localhost:1337/${region.getType()}?document_id=${
+        data.document.document.document_id
+      }&page_nr=${
+        currentPage["page_nr"]
+      }&${region.getType()}_nr=${region.getNumber()}`,
+      {
+        method: "DELETE",
+      }
+    );
+    regions = regions.filter((r) => r.getNumber() !== region.getNumber());
+    selectedRegions = selectedRegions.filter((r) => r !== region.getNumber());
   }
 </script>
 
@@ -125,43 +156,57 @@
           alt="pdf page"
         />
         {#each regions as region}
-          <Region
-          {region}
-          {deleteRegion}
-          {selectRegion}
-          {mergeRegions}
-          selected={selected_regions.includes(region.line_nr)}
+          <RegionOverlay
+            {region}
+            {deleteRegion}
+            {selectRegion}
+            {mergeRegions}
+            selected={selectedRegions.includes(region.getNumber())}
           />
         {/each}
         <div
-        class="w-full h-full absolute top-0 left-0 {marking ? 'z-50' : 'z-10'}"
-        on:mousedown={() => {
-          marking = true;
-          markerStart = mousePos;
-          markerEnd = mousePos;
-        }}
-        on:mousemove={() => {
-          if (!marking) return;
-          markerEnd = mousePos;
-        }}
-        on:mouseup={() => {
-          marking = false;
-          // createRegion();
-        }}
-      />
-      <div
-        class="bg-gray-300 bg-opacity-30 border-gray-200 border-2 rounded-md absolute z-50 pointer-events-none"
-        style="top:{markerStart?.y}px; left:{markerStart?.x}px; width:{markerEnd?.x -
-          markerStart?.x}px; height:{markerEnd?.y - markerStart?.y}px;"
-      />
-      <div class="flex w-full items-center justify-center my-4 gap-4">
-        <button class="px-4 py-2 flex bg-red-200 border-2 cursor-pointer border-red-300 rounded-md" on:click={() => {}}
-          >delete page</button
-        >
-        <button class="px-4 py-2 bg-blue-200 border-2 cursor-pointer border-blue-300 rounded-md" on:click={() => {}}
-          >next page</button
-        >
-      </div>
+          class="w-full h-full absolute top-0 left-0 {marking
+            ? 'z-50'
+            : 'z-10'}"
+          on:mousedown={() => {
+            marking = true;
+            markerStart = mousePos;
+            markerEnd = mousePos;
+          }}
+          on:mousemove={() => {
+            if (!marking) return;
+            markerEnd = mousePos;
+          }}
+          on:mouseup={() => {
+            marking = false;
+            // createRegion();
+          }}
+        />
+        <div
+          class="bg-gray-300 bg-opacity-30 border-gray-200 border-2 rounded-md absolute z-50 pointer-events-none"
+          style="top:{markerStart?.y}px; left:{markerStart?.x}px; width:{markerEnd?.x -
+            markerStart?.x}px; height:{markerEnd?.y - markerStart?.y}px;"
+        />
+        <div class="flex w-full items-center justify-center my-4 gap-4">
+          <button
+            class="px-4 py-2 flex bg-red-200 border-2 cursor-pointer border-red-300 rounded-md"
+            on:click={() => {
+              if (activeType == "char") {
+                activeType = "line";
+              } else {
+                activeType = "char";
+              }
+              loadRegions(currentPage.page_nr);
+            }}>Toggle Type</button
+          >
+          <button
+            class="px-4 py-2 bg-blue-200 border-2 cursor-pointer border-blue-300 rounded-md"
+            on:click={() => {
+              currentPage = data.document.pages[currentPage["page_nr"] + 1];
+              loadRegions(currentPage["page_nr"]);
+            }}>Next Page</button
+          >
+        </div>
       </div>
     {/if}
   </div>

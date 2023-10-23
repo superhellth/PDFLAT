@@ -1,17 +1,18 @@
-<script>
+<script lang="ts">
+  import Region from "$lib/region";
+
   export let name;
-  export let id;
+  export let id: number;
   export let color;
-  export let region;
+  export let region: Region;
   export let setColor;
 
   async function setLabel() {
-    console.log(region.line_nr)
-    console.log(id)
     const requestBody = JSON.stringify({
-      document_id: region.document_id,
-      page_nr: region.page_nr,
-      line_nr: region.line_nr,
+      document_id: region.getDocumentID(),
+      page_nr: region.getPageNR(),
+      number: region.getNumber(),
+      type: region.getType(),
       label_id: id,
     });
     // send request to API

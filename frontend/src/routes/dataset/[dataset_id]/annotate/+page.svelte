@@ -1,7 +1,7 @@
 <script>
   export let data;
   import { LABELS } from "../../../../stores/LABELS.js";
-  import Region from "../../../../components/Region.svelte";
+  import Region from "../../../../components/RegionOverlay.svelte";
   import { onMount } from "svelte";
   // call backend api to retrieve a document
   // and pass it to the component

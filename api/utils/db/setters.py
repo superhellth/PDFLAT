@@ -48,16 +48,15 @@ def label_line_in_db(document_id, page_nr, line_nr, label_id):
 
     return True
 
-
-def label_page_in_db(document_id, page_nr):
+def label_char_in_db(document_id, page_nr, char_nr, label_id):
     # Connect to the database
     conn, cur = connect()
 
     # Define the SQL query to get the data
-    sql = """UPDATE pages SET labelled = true WHERE document_id = %s AND page_nr = %s;"""
+    sql = """UPDATE chars SET label = %s WHERE document_id = %s AND page_nr = %s and char_nr = %s;"""
 
     # Execute the SQL query with the data as parameters
-    cur.execute(sql, (document_id, page_nr))
+    cur.execute(sql, (label_id, document_id, page_nr, char_nr))
 
     close(conn, cur)
 

@@ -121,7 +121,7 @@ def insert_char(document_id, page_nr, char_nr, char, cur):
         bool: Whether or not the insert was successful.
     """
     sql = "INSERT INTO chars (document_id, page_nr, char_nr, char_text, x, y, width, height) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);"
-    values = (document_id, page_nr, char_nr, char["text"], char["x0"], char["y0"], char["width"], char["height"])
+    values = (document_id, page_nr, char_nr, char["text"], char["x0"], char["top"], char["width"], char["height"])
     try:
         cur.execute(sql, values)
     except UniqueViolation as e:

@@ -11,7 +11,6 @@ from sklearn.neighbors import NearestNeighbors
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, UploadFile, Request
 from fastapi.responses import JSONResponse
-# from psycopg2.extras import Json
 import os
 import json
 import io
@@ -87,6 +86,7 @@ def parse_pdf(doc_id, doc_name, doc_path, dataset_id):
     with pdfplumber.open(doc_path) as pdf:
         for page_nr, page in enumerate(pdf.pages):
             chars_by_page.append(page.chars)
+    print("Extracted chars")
 
     doc_folder = doc_path.replace(".pdf", "/")
     if not os.path.exists(doc_folder):
@@ -95,23 +95,25 @@ def parse_pdf(doc_id, doc_name, doc_path, dataset_id):
     if len(chars_by_page) != len(doc_pages):
         return None
 
-    # Extract lines using pdftotext
-    for page_nr, doc_page in enumerate(doc_pages):
-        page_width, page_height = int(np.floor(float(doc_page['width']))), int(
-            np.floor(float(doc_page['height'])))
-        os.system(
-            f'pdftocairo -png -scale-to-x {page_width} -scale-to-y {page_height} {doc_path} {doc_folder}page')
-        imgs = os.listdir(doc_folder)
+    # Creating images of pages
+    page_width, page_height = int(np.floor(float(doc_pages[0]['width']))), int(
+            np.floor(float(doc_pages[0]['height'])))
+    os.system(
+        f'pdftocairo -png -scale-to-x {page_width} -scale-to-y {page_height} {doc_path} {doc_folder}page')
+    imgs = os.listdir(doc_folder)
+    number_of_images = len(imgs)
+    number_of_digits = len(str(number_of_images))
+    print("Created images")
 
-        number_of_images = len(imgs)
+    # Extract lines using pdftotext
+    print("Extracting lines...")
+    for page_nr, doc_page in enumerate(doc_pages):
         page_number_starting_at_1 = page_nr + 1
-        number_of_digits = len(str(number_of_images))
         number_of_zeros = number_of_digits - \
             len(str(page_number_starting_at_1))
         number_of_zeros = max(0, number_of_zeros)
         number_of_zeros = int(number_of_zeros)
         number = '0' * number_of_zeros + str(page_number_starting_at_1)
-
         image_path = f'/data/{doc_id}/page-{number}.png'
 
         lines = []
@@ -151,10 +153,12 @@ def upload(file_obj: UploadFile, dataset_id: str):
 
     # Insert the document into the database
     parsed_pdf = parse_pdf(doc_id, doc_name, doc_path, dataset_id)
+    print("Parsed file")
     if parsed_pdf is None:
         return {'success': False, 'message': 'document has nothing to annotate', 'doc_id': doc_id}
     elif not insert_document(parsed_pdf):
         return {'success': False, 'message': 'document already exists', 'doc_id': doc_id}
+    print("Uploaded to database")
 
     return JSONResponse({'document_id': doc_id})
 
@@ -169,47 +173,32 @@ async def create_dataset(request: Request):
     return {'success': True, 'message': 'dataset created', 'dataset': get_dataset_from_db(dataset_id)}
 
 
-# @ app.post("/region")
-# async def create_region(request: Request):
-#     data = await request.json()
-#     document_id = data.get("document_id")
-#     page_nr = data.get("page_nr")
-#     x_min = data.get("x_min")
-#     x_max = data.get("x_max")
-#     y_min = data.get("y_min")
-#     y_max = data.get("y_max")
-#     success, region_id, delete_region_ids = create_and_insert_region(
-#         document_id, page_nr, x_min, y_min, x_max, y_max)
-#     if success:
-#         return {'success': True, 'message': 'region created', 'region': get_region_from_db(region_id), 'delete_region_ids': delete_region_ids}
-#     if region_id is not None:
-#         return {'success': False, 'message': 'region already exists', 'region': get_region_from_db(region_id)}
-#     return {'success': False, 'message': 'empty region', 'region': None}
-
-
-# @ app.get("/region/{region_id}")
-# def get_region(region_id):
-#     region = get_region_from_db(region_id)
-#     return JSONResponse({'region': region})
-
-
 @ app.post("/label_region")
 async def label_region(request: Request):
     data = await request.json()
     document_id = data.get("document_id")
     page_nr = data.get("page_nr")
-    line_nr = data.get("line_nr")
+    number = data.get("number")
+    type = data.get("type")
     label_id = data.get("label_id")
-    label_line_in_db(document_id, page_nr, line_nr, label_id)
+    if type == "line":
+        label_line_in_db(document_id, page_nr, number, label_id)
+    elif type == "char":
+        label_char_in_db(document_id, page_nr, number, label_id)
     return {'success': True, 'message': 'region labeled', 'label_id': label_id}
 
 
-@ app.delete("/region/")
-def delete_region(document_id, page_nr, line_nr):
-    if delete_line_from_db(document_id, page_nr, line_nr):
+@ app.delete("/char/")
+def delete_char(document_id, page_nr, char_nr):
+    if delete_char_from_db(document_id, page_nr, char_nr):
         return {'success': True, 'message': 'region deleted'}
     return {'success': False, 'message': 'delete failed'}
 
+@ app.delete("/line/")
+def delete_line(document_id, page_nr, line_nr):
+    if delete_line_from_db(document_id, page_nr, line_nr):
+        return {'success': True, 'message': 'region deleted'}
+    return {'success': False, 'message': 'delete failed'}
 
 @ app.post("/merge_lines")
 async def merge_lines(request: Request):
@@ -254,19 +243,15 @@ def get_document(document_id):
 
 @ app.get("/pages/")
 def get_page(document_id, page_nr):
-    page = dict(get_page_from_db(document_id, page_nr))
-    lines = get_lines_of_page(document_id, page_nr)
-    lines = [dict(line) for line in lines]
-    chars = get_chars_of_page(document_id, page_nr)
-    chars = [dict(char) for char in chars]
-    return JSONResponse({'page': page, "lines": lines, "chars": chars})
-
-# @ app.get("/get_unlabelled_page/{dataset_id}")
-# def get_unlabelled_page(dataset_id):
-#     # return get_pages_of_document()
-#     page = get_unlabelled_page_from_db(dataset_id)
-#     regions = get_regions_for_page(page['document_id'], page['page_nr'])
-#     return JSONResponse({'page': page, 'regions': regions})
+    try:
+        page = dict(get_page_from_db(document_id, page_nr))
+        lines = get_lines_of_page(document_id, page_nr)
+        lines = [dict(line) for line in lines]
+        chars = get_chars_of_page(document_id, page_nr)
+        chars = [dict(char) for char in chars]
+    except Exception as e:
+        return JSONResponse({"success": False})
+    return JSONResponse({"success": True, 'page': page, "lines": lines, "chars": chars})
 
 @ app.get("/get_documents_of_dataset/{dataset_id}")
 def get_documents_of_dataset(dataset_id):
@@ -283,14 +268,6 @@ async def delete_document(request: Request):
     if delete_document_from_db(document_id):
         return {'success': True, 'message': 'Document, pages, lines and chars deleted'}
     return {'success': False, 'message': 'Nothing with this documentID in db'}
-
-# @ app.post("/label_page")
-# async def label_page(request: Request):
-#     data = await request.json()
-#     document_id = data.get("document_id")
-#     page_nr = data.get("page_nr")
-#     label_page_in_db(document_id, page_nr)
-#     return {'success': True, 'message': 'page set to labeled'}
 
 
 # @ app.post("/delete_page")
