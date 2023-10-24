@@ -28,7 +28,7 @@ class DBConnection:
 
         return conn, cur
 
-    def close(conn, cur):
+    def close(self, conn, cur):
         """Commit changes and close connection to database.
 
         Args:

@@ -19,14 +19,8 @@ def delete_row_by_id(table, id):
         return False
     return True
 
-def delete_region_from_db(region_id):
-    return delete_row_by_id('regions', region_id)
-
 def delete_dataset_from_db(dataset_id):
     return delete_row_by_id('datasets', dataset_id)
-
-def delete_model_from_db(model_id):
-    return delete_row_by_id('models', model_id)
 
 def delete_document_from_db(document_id):
     # Connect to the database

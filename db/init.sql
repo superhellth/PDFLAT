@@ -64,8 +64,6 @@ CREATE TABLE pages (
     image_path text not null,
     page_width double precision not null,
     page_height double precision not null,
-    number_lines integer not null,
-    number_chars integer not null,
     primary key (document_id, page_nr)
 );
 
