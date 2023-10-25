@@ -28,10 +28,6 @@ def update_row_by_id(table, id, data):
     return True
 
 
-def label_region_in_db(region_id, label):
-    update_row_by_id('regions', region_id, {'label': label})
-
-
 # spetial cases
 
 def label_line_in_db(document_id, page_nr, line_nr, label_id):

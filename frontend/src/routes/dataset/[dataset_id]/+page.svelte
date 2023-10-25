@@ -17,7 +17,9 @@
       `http://127.0.0.1:1337/get_documents_of_dataset/${data.dataset.dataset_id}`
     );
     documents = await response.json();
+    console.log(documents)
     documents = Array.from(documents["documents"]);
+    console.log(documents)
     documents_ready = true;
   }
 
@@ -84,14 +86,14 @@
         <ul>
           {#each documents as document}
             <li>
-              <h3>{document[2]}</h3>
-              <h5>ID: {document[0]}</h5>
-              <button on:click={() => deleteDocument(document[0])} >
+              <h3>{document.title}</h3>
+              <h5>ID: {document.document_id}</h5>
+              <button on:click={() => deleteDocument(document.document_id)} >
                 Delete
               </button>
               <a
                 rel="external"
-                href="/dataset/{data.dataset.dataset_id}/annotate/{document[0]}"
+                href="/dataset/{data.dataset.dataset_id}/annotate/{document.document_id}"
                 >Annotate file</a
               >
             </li>

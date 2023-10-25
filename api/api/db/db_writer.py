@@ -1,11 +1,36 @@
-from api.api.utils.page import Page
+from api.db.db_reader import DBReader
+from api.utils.page import Page
 from api.db.db_connection import DBConnection
 from api.utils.document import Document
+from psycopg2.extras import Json
 
 class DBWriter(DBConnection):
 
     def __init__(self) -> None:
         DBConnection.__init__(self)
+        self.reader = DBReader()
+
+    def label_line(self, document_id, page_nr, line_nr, label_id):
+        conn, cur = self.connect()
+        sql = """UPDATE lines SET label = %s WHERE document_id = %s AND page_nr = %s and line_nr = %s;"""
+        cur.execute(sql, (label_id, document_id, page_nr, line_nr))
+        self.close(conn, cur)
+        return True
+
+    def label_char(self, document_id, page_nr, char_nr, label_id):
+        conn, cur = self.connect()
+        sql = """UPDATE chars SET label = %s WHERE document_id = %s AND page_nr = %s and char_nr = %s;"""
+        cur.execute(sql, (label_id, document_id, page_nr, char_nr))
+        self.close(conn, cur)
+        return True
+    
+    
+    def set_label_for_dataset(self, dataset_id, label):
+        conn, cur = self.connect()
+        sql = """UPDATE datasets SET labels = array_append(labels, %s) WHERE dataset_id = %s;"""
+        cur.execute(sql, (Json(label), dataset_id))
+        self.close(conn, cur)
+        return True
 
     def insert_row(self, table, key_tuple, key_values):
         conn, cur = self.connect()
@@ -24,17 +49,11 @@ class DBWriter(DBConnection):
         cur.executemany(sql, key_values_list)
         self.close(conn, cur)
         return True
+    
+    def insert_dataset(self, dataset_id, dataset_name):
+        self.insert_row("datasets", ("dataset_id", "name"), (dataset_id, dataset_name))
 
     def insert_document(self, document: Document):
-        """Insert a document into the database. Including adding the pages, lines and chars
-        into the according tables.
-
-        Args:
-            document (Document): The document to index.
-
-        Returns:
-            bool: Whether or not the insert was successful.
-        """
         self.insert_row("documents", ("document_id", "title", "dataset_id"), (document.document_id, document.title, document.dataset_id))
         page_values_list = [(page.document_id, page.page_nr, page.image_path, page.width, page.height) for page in document.pages]
         self.insert_rows("pages", ("document_id", "page_nr", "image_path", "page_width", "page_height"), page_values_list)
@@ -45,15 +64,25 @@ class DBWriter(DBConnection):
             self.insert_rows("chars", ("document_id", "page_nr", "char_nr", "char_text", "x", "y", "width", "height"), char_values_list)
 
         return True
-
-    def delete_document_from_db(self, document_id):
+    
+    def insert_merged_line(self, document_id, page_nr, text, x, y, width, height):
         conn, cur = self.connect()
+        line_nr = self.reader.get_highest_line_nr(document_id, page_nr) + 1
+        self.insert_row("lines", ("document_id", "page_nr", "line_nr", "line_text", "x", "y", "width", "height", "merged"), (document_id, page_nr, line_nr, text, x, y, width, height, True))
+        self.close(conn, cur)
+        return True, line_nr
+
+    def delete_document(self, document_id):
         self.delete_row("documents", ("document_id",), (document_id))
         self.delete_rows("pages", ("document_id",), (document_id))
         self.delete_rows("lines", ("document_id",), (document_id))
         self.delete_rows("chars", ("document_id",), (document_id))
-        self.close(conn, cur)
         return True
+    
+    def delete_page(self, document_id, page_nr):
+        self.delete_row("pages", ("document_id", "page_nr"), (document_id, page_nr))
+        self.delete_rows("lines", ("document_id", "page_nr"), (document_id, page_nr))
+        self.delete_rows("chars", ("document_id", "page_nr"), (document_id, page_nr))
     
     def delete_line(self, document_id, page_nr, line_nr):
         return self.delete_row("lines", ("document_id", "page_nr", "line_nr"), (document_id, page_nr, line_nr))

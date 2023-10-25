@@ -16,7 +16,6 @@
   on:keydown={() => {}}
   class="bg-white absolute z-50 -top-40 mt-2 w-[500px] p-4 grid grid-cols-{cols} rounded-md -left-4 border-2 border-gray-100 shadow-xl gap-2"
 >
-<!-- <p class="p items-center rounded-md px-2 py-1">{region.getText()}</p>  -->
   <div
     class="col-span-{cols} grid grid-cols-{Math.max(
       2,

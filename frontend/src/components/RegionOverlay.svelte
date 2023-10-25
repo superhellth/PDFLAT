@@ -14,7 +14,8 @@
   bg-green-300 bg-red-300
   border-2 border-4 border-6
   */
-  let color = getLabelColorByID(region.getLabel());
+  // let color = getLabelColorByID(region.getLabel());
+  let color = region.getLabelColor();
   let labelled = false;
   if (!color) {
     color = "gray";
@@ -25,7 +26,6 @@
     labelled = true;
   };
   let hover = false;
-  console.log(region.getType())
   let isLine: boolean = region.getType() == "line";
 </script>
 
@@ -36,7 +36,7 @@
     selectRegion(region.getNumber());
   }}
   on:keydown={() => {}}
-  class="absolute bg-{color}-200 border-{color}-400 bg-opacity-{isLine ? '50': '30'} border-{selected
+  class="absolute bg-{color}-200 border-{color}-400 bg-opacity-20 border-{selected
     ? region.getType() == "line" ? '4' : '2'
     : region.getType() == "line" ? '2' : '1'} {labelled
     ? 'z-[15]'
