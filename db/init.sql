@@ -76,7 +76,7 @@ CREATE TABLE lines (
     y double precision not null,
     width double precision not null,
     height double precision not null,
-    merged bool not null default false,
+    merged integer[] not null default ARRAY[]::integer[],
     label integer default -1,
     primary key (document_id, page_nr, line_nr)
 );

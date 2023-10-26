@@ -211,12 +211,14 @@ async def merge_lines(request: Request):
                for line_nr in line_nrs]
     x = min([region['x'] for region in regions])
     y = min([region['y'] for region in regions])
-    width = max([region["width"] for region in regions])
+    width = max([region["x"] + region["width"] for region in regions]) - x
     height = max([region["y"] + region["height"] for region in regions]) - y
     text = "\n".join([region['line_text'] for region in regions])
+    merged_from = list(set([fr for region in regions for fr in region["merged"] if fr != {}] + [region["line_nr"] for region in regions]))
+    print(merged_from)
 
     success, line_nr = db_writer.insert_merged_line(
-        document_id, page_nr, text, x, y, width, height)
+        document_id, page_nr, text, x, y, width, height, merged_from)
 
     if success:
         return {'success': True, 'message': 'regions merged', 'region': db_reader.get_line(document_id, page_nr, line_nr), "delete_line_nrs": line_nrs}

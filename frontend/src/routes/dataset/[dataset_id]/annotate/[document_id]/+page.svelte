@@ -20,9 +20,9 @@
   let marking = false;
 
   onMount(async () => {
-    console.log(data)
+    console.log(data);
     for (var page of data.document.pages) {
-      allPageNumbers.push(page.page_nr)
+      allPageNumbers.push(page.page_nr);
     }
     setLabels();
     await loadPage(currentIndex);
@@ -35,11 +35,12 @@
   async function loadPage(index: number) {
     currentPage = data.document.pages[index];
     await loadRegions(currentPage.page_nr);
-    console.log(currentPage.page_nr)
   }
 
-  async function deletePage(pageNr: number){
-    data.document.pages = data.document.pages.filter((p) => p.page_nr != pageNr)
+  async function deletePage(pageNr: number) {
+    data.document.pages = data.document.pages.filter(
+      (p) => p.page_nr != pageNr
+    );
     allPageNumbers = allPageNumbers.filter((p) => p != pageNr);
     if (currentIndex + 1 == allPageNumbers.length) {
       currentIndex -= 1;
@@ -56,7 +57,7 @@
         "Content-Type": "application/json",
       },
     });
-    console.log(await res.json())
+    console.log(await res.json());
     await loadPage(currentIndex);
   }
 
@@ -65,19 +66,28 @@
       `http://127.0.0.1:1337/pages/?document_id=${data.document.document.document_id}&page_nr=${pageNr}`
     );
     let json = await response.json();
-    // regions = [];
     if (json["success"] == true) {
       let labels: any[] = data.dataset.labels;
       let labelsMap = new Map<number, string>();
       for (var label of labels) {
-        labelsMap.set(label.id, label.color)
+        labelsMap.set(label.id, label.color);
       }
-      lines = json["lines"].map((obj) => new Region("line", obj, labelsMap.get(obj.label)));
-      chars = json["chars"].map((obj) => new Region("char", obj, labelsMap.get(obj.label)));
+      lines = json["lines"].map(
+        (obj) => new Region("line", obj, labelsMap.get(obj.label))
+      );
+      chars = json["chars"].map(
+        (obj) => new Region("char", obj, labelsMap.get(obj.label))
+      );
       if (activeType == "line") {
         regions = lines;
       } else {
         regions = chars;
+      }
+      console.log("Page reload");
+      for (var region of regions) {
+        if (region.getLabel() != -1) {
+          console.log(region);
+        }
       }
     } else {
       lines = [];
@@ -95,7 +105,7 @@
     }
     if (selectedRegions.length > 0) {
       let newRegion = await mergeRegions(number);
-      newRegion = new Region(activeType, newRegion);
+      newRegion = new Region(activeType, newRegion, "grey");
       selectedRegions = [newRegion.getNumber()];
     } else {
       selectedRegions = [...selectedRegions, number];
@@ -155,7 +165,9 @@
 </script>
 
 <body>
-  <h2>{data.document.document.title} Number of pages: {data.document.pages.length}</h2>
+  <h2>
+    {data.document.document.title} Number of pages: {data.document.pages.length}
+  </h2>
 
   <div
     class="w-screen h-screen overflow-scroll flex items-left justify-start flex-col p-4"
@@ -178,15 +190,17 @@
           src="http://localhost:1337{currentPage.image_path}"
           alt="pdf page"
         />
-        {#each regions as region}
-          <RegionOverlay
-            {region}
-            {deleteRegion}
-            {selectRegion}
-            {mergeRegions}
-            selected={selectedRegions.includes(region.getNumber())}
-          />
-        {/each}
+        {#key regions}
+          {#each regions as region}
+            <RegionOverlay
+              {region}
+              {deleteRegion}
+              {selectRegion}
+              {mergeRegions}
+              selected={selectedRegions.includes(region.getNumber())}
+            />
+          {/each}
+        {/key}
         <div
           class="w-full h-full absolute top-0 left-0 {marking
             ? 'z-50'
@@ -240,19 +254,23 @@
               }}>Next Page</button
             >
           {/if}
-          <input type="text" id="page-scroller" on:keyup={() => {
-            let currentText = document.getElementById("page-scroller").value;
-            if (currentText < allPageNumbers.length - 1 && currentText >= 0) {
-              currentIndex = currentText;
-              loadPage(currentIndex);
-            }
-          }} />
+          <input
+            type="text"
+            id="page-scroller"
+            on:keyup={() => {
+              let currentText = document.getElementById("page-scroller").value;
+              if (currentText < allPageNumbers.length - 1 && currentText >= 0) {
+                currentIndex = currentText;
+                loadPage(currentIndex);
+              }
+            }}
+          />
           <button
-          class="px-4 py-2 flex bg-red-200 border-2 cursor-pointer border-red-300 rounded-md"
-          on:click={() => {
-            deletePage(currentPage.page_nr)
-          }}>Delete Page</button
-        >
+            class="px-4 py-2 flex bg-red-200 border-2 cursor-pointer border-red-300 rounded-md"
+            on:click={() => {
+              deletePage(currentPage.page_nr);
+            }}>Delete Page</button
+          >
         </div>
       </div>
     {/if}

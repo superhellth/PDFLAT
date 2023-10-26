@@ -1,6 +1,6 @@
 RUN DB:
 docker build -t db .
-docker run -p 6543:5432 -e POSTGRES_PASSWORD=PG_PASSWORD db
+docker run -p 6543:5432 -e POSTGRES_PASSWORD=PG_PASSWORD -e POSTGRES_DB=test_db -e POSTGRES_USER=test_user db
 
 RUN API:
 uvicorn api:app --host 127.0.0.1 --port 1337 --reload

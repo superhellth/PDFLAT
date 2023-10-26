@@ -70,7 +70,7 @@
     }}
   />
 
-  <button on:click={uploadFile}>Upload</button>
+  <button class="px-4 py-2 bg-blue-200 border-2 cursor-pointer border-blue-300 rounded-md" on:click={uploadFile}>Upload</button>
   {#if latest_response["success"] == false}
     <p>{latest_response["message"]}</p>
   {:else}
@@ -88,7 +88,7 @@
             <li>
               <h3>{document.title}</h3>
               <h5>ID: {document.document_id}</h5>
-              <button on:click={() => deleteDocument(document.document_id)} >
+              <button class="px-4 py-2 bg-red-200 border-2 cursor-pointer border-red-300 rounded-md" on:click={() => deleteDocument(document.document_id)} >
                 Delete
               </button>
               <a

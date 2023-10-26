@@ -57,7 +57,10 @@ class DBWriter(DBConnection):
         self.insert_row("documents", ("document_id", "title", "dataset_id"), (document.document_id, document.title, document.dataset_id))
         page_values_list = [(page.document_id, page.page_nr, page.image_path, page.width, page.height) for page in document.pages]
         self.insert_rows("pages", ("document_id", "page_nr", "image_path", "page_width", "page_height"), page_values_list)
-        for page in document.pages:
+        print("Inserting lines and chars...")
+        for pi, page in enumerate(document.pages):
+            if pi % 5 == 0:
+                print(f"Line {pi + 1} / {len(document.pages)}")
             line_values_list = [(line.document_id, line.page_nr, line.line_nr, line.text, line.x, line.y, line.width, line.height) for line in page.lines]
             self.insert_rows("lines", ("document_id", "page_nr", "line_nr", "line_text", "x", "y", "width", "height"), line_values_list)
             char_values_list = [(page.document_id, page.page_nr, i, char["text"], char["x0"], char["top"], char["width"], char["height"]) for i, char in enumerate(page.chars)]
@@ -65,18 +68,19 @@ class DBWriter(DBConnection):
 
         return True
     
-    def insert_merged_line(self, document_id, page_nr, text, x, y, width, height):
+    def insert_merged_line(self, document_id, page_nr, text, x, y, width, height, merged_from):
         conn, cur = self.connect()
         line_nr = self.reader.get_highest_line_nr(document_id, page_nr) + 1
-        self.insert_row("lines", ("document_id", "page_nr", "line_nr", "line_text", "x", "y", "width", "height", "merged"), (document_id, page_nr, line_nr, text, x, y, width, height, True))
+        sql = f"INSERT INTO lines (document_id, page_nr, line_nr, line_text, x, y, width, height, merged) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, ARRAY[{','.join(merged_from)}]::integer[])"
+        cur.execute(sql, (document_id, page_nr, line_nr, text, x, y, width, height))
         self.close(conn, cur)
         return True, line_nr
 
     def delete_document(self, document_id):
-        self.delete_row("documents", ("document_id",), (document_id))
-        self.delete_rows("pages", ("document_id",), (document_id))
-        self.delete_rows("lines", ("document_id",), (document_id))
-        self.delete_rows("chars", ("document_id",), (document_id))
+        self.delete_row("documents", ("document_id",), (document_id,))
+        self.delete_rows("pages", ("document_id",), (document_id,))
+        self.delete_rows("lines", ("document_id",), (document_id,))
+        self.delete_rows("chars", ("document_id",), (document_id,))
         return True
     
     def delete_page(self, document_id, page_nr):
@@ -93,10 +97,14 @@ class DBWriter(DBConnection):
     def delete_dataset(self, dataset_id):
         return self.delete_row("datasets", ("dataset_id",), (dataset_id,))
     
-    def remove_label_for_dataset(self, dataset_id, label):
+    def remove_label_for_dataset(self, dataset_id, label_json, label):
         conn, cur = self.connect()
         sql = """UPDATE datasets SET labels = array_remove(labels, %s) WHERE dataset_id = %s;"""
-        cur.execute(sql, (label, dataset_id))
+        cur.execute(sql, (label_json, dataset_id))
+        sql = """UPDATE lines SET label = -1 WHERE label = %s"""
+        cur.execute(sql, (label["id"],))
+        sql = """UPDATE chars SET label = -1 WHERE label = %s"""
+        cur.execute(sql, (label["id"],))
         self.close(conn, cur)
         return True
 
