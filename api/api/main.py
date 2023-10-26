@@ -215,7 +215,6 @@ async def merge_lines(request: Request):
     height = max([region["y"] + region["height"] for region in regions]) - y
     text = "\n".join([region['line_text'] for region in regions])
     merged_from = list(set([fr for region in regions for fr in region["merged"] if fr != {}] + [region["line_nr"] for region in regions]))
-    print(merged_from)
 
     success, line_nr = db_writer.insert_merged_line(
         document_id, page_nr, text, x, y, width, height, merged_from)

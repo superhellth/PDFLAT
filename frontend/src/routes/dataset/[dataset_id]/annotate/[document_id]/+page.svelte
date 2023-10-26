@@ -12,6 +12,10 @@
   let lines: any = null;
   let chars: any = null;
   let regions: Region[] = [];
+  let hidden: number[] = [];
+  $: {
+    updateHidden(regions);
+  }
   let selectedRegions: any = [];
 
   let mousePos = { x: 0, y: 0 };
@@ -27,6 +31,15 @@
     setLabels();
     await loadPage(currentIndex);
   });
+
+  function updateHidden(regs: Region[]) {
+    hidden = [];
+    for (let reg of regs) {
+      for (var n of reg.getMergedFrom()) {
+        hidden.push(n);
+      }
+    }
+  }
 
   function setLabels() {
     LABELS.set(data.dataset.labels);
@@ -141,7 +154,7 @@
     selectedRegions = [];
 
     // add new region to regions
-    regions = [...regions, new Region(activeType, jsonData.region)];
+    regions = [...regions, new Region(activeType, jsonData.region, "grey")];
 
     // remove all regions from selected regions
     selectedRegions = [];
@@ -192,13 +205,15 @@
         />
         {#key regions}
           {#each regions as region}
-            <RegionOverlay
-              {region}
-              {deleteRegion}
-              {selectRegion}
-              {mergeRegions}
-              selected={selectedRegions.includes(region.getNumber())}
-            />
+            {#if !hidden.includes(region.getNumber())}
+              <RegionOverlay
+                {region}
+                {deleteRegion}
+                {selectRegion}
+                {mergeRegions}
+                selected={selectedRegions.includes(region.getNumber())}
+              />
+            {/if}
           {/each}
         {/key}
         <div

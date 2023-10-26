@@ -4,6 +4,7 @@ from api.db.db_connection import DBConnection
 from api.utils.document import Document
 from psycopg2.extras import Json
 
+
 class DBWriter(DBConnection):
 
     def __init__(self) -> None:
@@ -23,8 +24,7 @@ class DBWriter(DBConnection):
         cur.execute(sql, (label_id, document_id, page_nr, char_nr))
         self.close(conn, cur)
         return True
-    
-    
+
     def set_label_for_dataset(self, dataset_id, label):
         conn, cur = self.connect()
         sql = """UPDATE datasets SET labels = array_append(labels, %s) WHERE dataset_id = %s;"""
@@ -40,7 +40,7 @@ class DBWriter(DBConnection):
         cur.execute(sql, key_values)
         self.close(conn, cur)
         return True
-    
+
     def insert_rows(self, table, key_tuple, key_values_list):
         conn, cur = self.connect()
         attribute_list = "(" + ",".join(key_tuple) + ")"
@@ -49,31 +49,37 @@ class DBWriter(DBConnection):
         cur.executemany(sql, key_values_list)
         self.close(conn, cur)
         return True
-    
+
     def insert_dataset(self, dataset_id, dataset_name):
-        self.insert_row("datasets", ("dataset_id", "name"), (dataset_id, dataset_name))
+        self.insert_row("datasets", ("dataset_id", "name"),
+                        (dataset_id, dataset_name))
 
     def insert_document(self, document: Document):
-        self.insert_row("documents", ("document_id", "title", "dataset_id"), (document.document_id, document.title, document.dataset_id))
-        page_values_list = [(page.document_id, page.page_nr, page.image_path, page.width, page.height) for page in document.pages]
-        self.insert_rows("pages", ("document_id", "page_nr", "image_path", "page_width", "page_height"), page_values_list)
+        self.insert_row("documents", ("document_id", "title", "dataset_id"),
+                        (document.document_id, document.title, document.dataset_id))
+        page_values_list = [(page.document_id, page.page_nr, page.image_path,
+                             page.width, page.height) for page in document.pages]
+        self.insert_rows("pages", ("document_id", "page_nr", "image_path",
+                         "page_width", "page_height"), page_values_list)
         print("Inserting lines and chars...")
         for pi, page in enumerate(document.pages):
             if pi % 5 == 0:
                 print(f"Line {pi + 1} / {len(document.pages)}")
-            line_values_list = [(line.document_id, line.page_nr, line.line_nr, line.text, line.x, line.y, line.width, line.height) for line in page.lines]
-            self.insert_rows("lines", ("document_id", "page_nr", "line_nr", "line_text", "x", "y", "width", "height"), line_values_list)
-            char_values_list = [(page.document_id, page.page_nr, i, char["text"], char["x0"], char["top"], char["width"], char["height"]) for i, char in enumerate(page.chars)]
-            self.insert_rows("chars", ("document_id", "page_nr", "char_nr", "char_text", "x", "y", "width", "height"), char_values_list)
+            line_values_list = [(line.document_id, line.page_nr, line.line_nr, line.text,
+                                 line.x, line.y, line.width, line.height) for line in page.lines]
+            self.insert_rows("lines", ("document_id", "page_nr", "line_nr",
+                             "line_text", "x", "y", "width", "height"), line_values_list)
+            char_values_list = [(page.document_id, page.page_nr, i, char["text"], char["x0"],
+                                 char["top"], char["width"], char["height"]) for i, char in enumerate(page.chars)]
+            self.insert_rows("chars", ("document_id", "page_nr", "char_nr",
+                             "char_text", "x", "y", "width", "height"), char_values_list)
 
         return True
-    
+
     def insert_merged_line(self, document_id, page_nr, text, x, y, width, height, merged_from):
-        conn, cur = self.connect()
         line_nr = self.reader.get_highest_line_nr(document_id, page_nr) + 1
-        sql = f"INSERT INTO lines (document_id, page_nr, line_nr, line_text, x, y, width, height, merged) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, ARRAY[{','.join(merged_from)}]::integer[])"
-        cur.execute(sql, (document_id, page_nr, line_nr, text, x, y, width, height))
-        self.close(conn, cur)
+        self.insert_row("lines", ("document_id", "page_nr", "line_nr", "line_text", "x", "y", "width",
+                        "height", "merged"), (document_id, page_nr, line_nr, text, x, y, width, height, merged_from))
         return True, line_nr
 
     def delete_document(self, document_id):
@@ -82,12 +88,15 @@ class DBWriter(DBConnection):
         self.delete_rows("lines", ("document_id",), (document_id,))
         self.delete_rows("chars", ("document_id",), (document_id,))
         return True
-    
+
     def delete_page(self, document_id, page_nr):
-        self.delete_row("pages", ("document_id", "page_nr"), (document_id, page_nr))
-        self.delete_rows("lines", ("document_id", "page_nr"), (document_id, page_nr))
-        self.delete_rows("chars", ("document_id", "page_nr"), (document_id, page_nr))
-    
+        self.delete_row("pages", ("document_id", "page_nr"),
+                        (document_id, page_nr))
+        self.delete_rows("lines", ("document_id", "page_nr"),
+                         (document_id, page_nr))
+        self.delete_rows("chars", ("document_id", "page_nr"),
+                         (document_id, page_nr))
+
     def delete_line(self, document_id, page_nr, line_nr):
         return self.delete_row("lines", ("document_id", "page_nr", "line_nr"), (document_id, page_nr, line_nr))
 
@@ -96,7 +105,7 @@ class DBWriter(DBConnection):
 
     def delete_dataset(self, dataset_id):
         return self.delete_row("datasets", ("dataset_id",), (dataset_id,))
-    
+
     def remove_label_for_dataset(self, dataset_id, label_json, label):
         conn, cur = self.connect()
         sql = """UPDATE datasets SET labels = array_remove(labels, %s) WHERE dataset_id = %s;"""
@@ -120,8 +129,9 @@ class DBWriter(DBConnection):
 
         if rowcount != 0:
             return True
-        raise Exception(f'No row with primary key {primary_key_values} in table {table}')
-    
+        raise Exception(
+            f'No row with primary key {primary_key_values} in table {table}')
+
     def delete_rows(self, table, key_tuple=None, key_values=None):
         conn, cur = self.connect()
         if key_tuple is None or key_values is None:

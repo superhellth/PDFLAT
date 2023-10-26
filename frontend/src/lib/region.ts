@@ -11,6 +11,7 @@ class Region {
     private height: number;
     private label: number;
     private labelColor: string;
+    private mergedFrom: number[];
 
     constructor(type: string, object: any, labelColor: string) {
         this.type = type;
@@ -24,6 +25,7 @@ class Region {
         this.height = object.height;
         this.label = object.label;
         this.labelColor = labelColor;
+        this.mergedFrom = object.merged;
     }
 
     public getType(): string {
@@ -68,6 +70,10 @@ class Region {
 
     public getLabelColor(): string {
         return this.labelColor;
+    }
+
+    public getMergedFrom(): number[] {
+        return this.mergedFrom;
     }
 
 }
