@@ -14,6 +14,9 @@ class DBReader(DBConnection):
 
     def get_all_datasets(self):
         return self.get_rows('datasets')
+    
+    def get_all_lines(self, document_id, page_nr):
+        return self.get_rows("lines", ("document_id", "page_nr"), (document_id, page_nr))
 
     def get_dataset(self, dataset_id):
         return self.get_row('datasets', ("dataset_id",), (dataset_id,))

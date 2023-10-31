@@ -64,7 +64,7 @@ class DBWriter(DBConnection):
         print("Inserting lines and chars...")
         for pi, page in enumerate(document.pages):
             if pi % 5 == 0:
-                print(f"Line {pi + 1} / {len(document.pages)}")
+                print(f"Page {pi + 1} / {len(document.pages)}")
             line_values_list = [(line.document_id, line.page_nr, line.line_nr, line.text,
                                  line.x, line.y, line.width, line.height) for line in page.lines]
             self.insert_rows("lines", ("document_id", "page_nr", "line_nr",

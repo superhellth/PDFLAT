@@ -33,12 +33,14 @@
   });
 
   function updateHidden(regs: Region[]) {
+    // console.log("Update hidden")
     hidden = [];
     for (let reg of regs) {
       for (var n of reg.getMergedFrom()) {
         hidden.push(n);
       }
     }
+    // console.log(hidden)
   }
 
   function setLabels() {
@@ -148,9 +150,9 @@
     let jsonData = await response.json();
 
     // remove all deleted from regions
-    regions = regions.filter(
-      (r) => !jsonData["delete_line_nrs"].includes(r.getNumber())
-    );
+    // regions = regions.filter(
+    //   (r) => !jsonData["delete_line_nrs"].includes(r.getNumber())
+    // );
     selectedRegions = [];
 
     // add new region to regions
@@ -173,7 +175,7 @@
       }
     );
     regions = regions.filter((r) => r.getNumber() !== region.getNumber());
-    selectedRegions = selectedRegions.filter((r) => r !== region.getNumber());
+    selectedRegions = [];
   }
 </script>
 

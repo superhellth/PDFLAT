@@ -120,7 +120,8 @@ def parse_pdf(doc_id, doc_name, doc_path, dataset_id):
         for line_nr, line_object in enumerate(line_objects):
             # Create line objects ready for db
             x, y, width, height = get_position(line_object)
-            line_text = "PLACEHOLDER"
+            word_objects = line_object.select('word')
+            line_text = " ".join([word_object.text for word_object in word_objects])
             line = Line(doc_id, page_nr, line_nr,
                         line_text, x, y, width, height)
             lines.append(line)
