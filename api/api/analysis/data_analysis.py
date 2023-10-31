@@ -4,36 +4,43 @@ import numpy as np
 from sklearn.manifold import TSNE
 import pandas as pd
 import seaborn as sns
+from sklearn import svm
+from sklearn.model_selection import train_test_split
 from api.db.db_reader import DBReader
+from api.analysis.pdf_scanner import PDFScanner
 
 DATASET_NAME = "BA"
 FOOTNOTE_LABEL_NAME = "footnote"
 DOCUMENT_ID = "fb5e678859ded202b0c7588ffd9e3c21"
-
 reader = DBReader()
 dataset = [dataset for dataset in reader.get_all_datasets() if dataset["name"] == "BA"][0]
+documents = [document["document_id"] for document in reader.get_documents_of_dataset(dataset["dataset_id"])]
+
 print(f"Dataset ID: {dataset['dataset_id']}")
 print(f"Dataset name: {dataset['name']}")
 labels = dataset["labels"]
 footnote_label_id = [label for label in labels if label['name'] == FOOTNOTE_LABEL_NAME][0]['id']
 print(f"Footnote label ID: {footnote_label_id}")
+print(f"Documents:")
+print(documents)
 print()
 
-# page = 0
-lines_by_page = []
-for page in range(58):
-    all_lines = reader.get_all_lines(DOCUMENT_ID, page)
-    used_in_merges = []
-    for line in all_lines:
-        used_in_merges += line["merged"]
-    without_merged = [line for line in all_lines if line["line_nr"] not in used_in_merges]
-    lines_by_page.append(without_merged)
-    # print(f"On page {page}:")
-    # print(f"All lines length: {len(all_lines)}")
-    # print(f"Non-merged lines length: {len(without_merged)}")
-    # footnote_lines = [line for line in without_merged if line["label"] == footnote_label_id]
-    # non_footnote_lines = [line for line in without_merged if not line["label"] == footnote_label_id]
-    # print(f"Number of footnotes: {len(footnote_lines)}")
+pages = 0
+lines_by_page_by_doc = []
+for document_id in documents:
+    n_pages = len(reader.get_all_pages(document_id))
+    lines_by_page = []
+    for page in range(n_pages):
+        all_lines = reader.get_all_lines(document_id, page)
+        used_in_merges = []
+        for line in all_lines:
+            used_in_merges += line["merged"]
+        without_merged = [line for line in all_lines if line["line_nr"] not in used_in_merges]
+        footnote_lines = [line for line in without_merged if line["label"] == footnote_label_id]
+        pages += 1
+        lines_by_page.append(without_merged)
+    lines_by_page_by_doc.append(lines_by_page)
+print(f"Data from {pages} pages")
 
 def page_lines_to_features(page_lines):
     median_x = statistics.median([line["x"] for line in page_lines])
@@ -103,10 +110,42 @@ def tsneplot(lines, embeddings):
     plt.title("t-SNE visualization")
     plt.show()
 
-embeddings_by_page = [page_lines_to_features(page_lines) for page_lines in lines_by_page]
+embeddings_by_page = [page_lines_to_features(page_lines) for lines_by_page in lines_by_page_by_doc for page_lines in lines_by_page]
 all_normalized = normalize_3([line_f for page_features in embeddings_by_page for line_f in page_features])
-all_lines = [line for page_lines in lines_by_page for line in page_lines]
-# print(all_lines)
-# embeddings = page_lines_to_features(without_merged)
-# normalized = normalize_3(embeddings)
-tsneplot(all_lines, all_normalized)
+all_lines = [line for lines_by_page in lines_by_page_by_doc for page_lines in lines_by_page for line in page_lines]
+
+# balance classes
+footnote_indices = [i for i, line in enumerate(all_lines) if line["label"] == 6]
+normal_indices = [i for i, line in enumerate(all_lines) if line["label"] != 6]
+selected_normal_indices = np.random.choice(normal_indices, len(footnote_indices) * 3, replace=False)
+selected_indices = np.union1d(selected_normal_indices, footnote_indices)
+
+all_normalized = [all_normalized[i] for i in selected_indices]
+all_lines = [all_lines[i] for i in selected_indices]
+
+X_train, X_test, y_train, y_test = train_test_split(all_normalized, [1 if line["label"] == 6 else -1 for line in all_lines], test_size=0.33, random_state=42)
+clf = svm.SVC()
+clf.fit(X_train, y_train)
+preds = clf.predict(X_test)
+correct_normal = len([1 for i, pred in enumerate(preds) if pred == -1 and y_test[i] == -1])
+correct_foot = len([1 for i, pred in enumerate(preds) if pred == 1 and y_test[i] == 1])
+correct_total = len([1 for i, pred in enumerate(preds) if pred ==  y_test[i]])
+print(f"Classified {len(preds)} lines.")
+print(f"{correct_normal} correctly classified as non-foot")
+print(f"{correct_foot} correctly classified as foot")
+print(f"{correct_total} correctly classified")
+print(f"{len(preds) - correct_total} wrongly classified")
+print(f"Of which {len([1 for i, pred in enumerate(preds) if pred != y_test[i] and y_test[i] == 1])} were footnotes")
+
+scanner = PDFScanner()
+all_lines, all_normalized = scanner.get_line_features("../../../container_data/data/c5cec3baf6ccc3940837ba410aacedcc.pdf")
+preds = clf.predict(all_normalized)
+for i in range(len(preds)):
+    if preds[i] == 1:
+        print("----------------")
+        print(preds[i])
+        print(all_lines[i].text)
+        print("----------------")
+
+
+# tsneplot(all_lines, all_normalized)

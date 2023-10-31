@@ -27,6 +27,9 @@ class DBReader(DBConnection):
     def get_line(self, document_id, page_nr, line_nr):
         return self.get_row("lines", ("document_id", "page_nr", "line_nr"), (document_id, page_nr, line_nr))
 
+    def get_all_pages(self, document_id):
+        return self.get_rows("pages", ("document_id",), (document_id,))
+
     def get_page(self, document_id, page_nr):
         return self.get_row("pages", ("document_id", "page_nr"), (document_id, page_nr))
     
