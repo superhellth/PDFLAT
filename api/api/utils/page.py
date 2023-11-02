@@ -1,6 +1,6 @@
 class Page:
 
-    def __init__(self, document_id, page_nr, image_path, width, height, lines, chars, pdfplumber_page=None) -> None:
+    def __init__(self, document_id, page_nr, image_path, width, height, lines, chars, pdfplumber_page=None, n_horizontal_lines=None) -> None:
         self.CURVE_TO_LINE_THRESHOLD = 10
         self.document_id = document_id
         self.page_nr = page_nr
@@ -9,16 +9,20 @@ class Page:
         self.height = height
         self.lines = lines
         self.chars = chars
-        if self.lines is not None and self.chars is not None:
-            self.number_lines = len(self.lines)
-            self.number_chars = len(self.chars)
-        else:
+        self.number_lines = len(self.lines)
+        self.number_chars = len(self.chars)
+        if pdfplumber_page is not None:
             self.raw_page = pdfplumber_page
             self.chars = pdfplumber_page.chars
             self.curves = pdfplumber_page.curves
             self.raw_lines = pdfplumber_page.lines
             self.rects = pdfplumber_page.rects
             self.horizontal_lines = self.find_horizontals()
+            self.n_horizontal_lines = len(self.horizontal_lines)
+            for line in self.lines:
+                line.n_lines_below = self.find_num_lines_below_above_block(line, below=True)
+        else:
+            self.n_horizontal_lines = n_horizontal_lines
 
     def find_num_lines_below_above_block(self, line, below=True) -> int:
         """Count the number of lines and horizontal curves that are below or above the given block. For the blocks the values in blocks_by_page_by_top are used.

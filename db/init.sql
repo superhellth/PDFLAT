@@ -64,6 +64,7 @@ CREATE TABLE pages (
     image_path text not null,
     page_width double precision not null,
     page_height double precision not null,
+    n_horizontal_lines integer not null,
     primary key (document_id, page_nr)
 );
 
@@ -76,6 +77,7 @@ CREATE TABLE lines (
     y double precision not null,
     width double precision not null,
     height double precision not null,
+    n_lines_below integer not null,
     merged integer[] not null default ARRAY[]::integer[],
     label integer default -1,
     primary key (document_id, page_nr, line_nr)

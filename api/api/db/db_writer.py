@@ -58,17 +58,17 @@ class DBWriter(DBConnection):
         self.insert_row("documents", ("document_id", "title", "dataset_id"),
                         (document.document_id, document.title, document.dataset_id))
         page_values_list = [(page.document_id, page.page_nr, page.image_path,
-                             page.width, page.height) for page in document.pages]
+                             page.width, page.height, len(page.horizontal_lines)) for page in document.pages]
         self.insert_rows("pages", ("document_id", "page_nr", "image_path",
-                         "page_width", "page_height"), page_values_list)
+                         "page_width", "page_height", "n_horizontal_lines"), page_values_list)
         print("Inserting lines and chars...")
         for pi, page in enumerate(document.pages):
             if pi % 5 == 0:
                 print(f"Page {pi} / {len(document.pages)}")
             line_values_list = [(line.document_id, line.page_nr, line.line_nr, line.text,
-                                 line.x, line.y, line.width, line.height) for line in page.lines]
+                                 line.x, line.y, line.width, line.height, line.n_lines_below) for line in page.lines]
             self.insert_rows("lines", ("document_id", "page_nr", "line_nr",
-                             "line_text", "x", "y", "width", "height"), line_values_list)
+                             "line_text", "x", "y", "width", "height", "n_lines_below"), line_values_list)
             char_values_list = [(page.document_id, page.page_nr, i, char["text"], char["x0"],
                                  char["top"], char["width"], char["height"]) for i, char in enumerate(page.chars)]
             self.insert_rows("chars", ("document_id", "page_nr", "char_nr",
@@ -76,10 +76,10 @@ class DBWriter(DBConnection):
 
         return True
 
-    def insert_merged_line(self, document_id, page_nr, text, x, y, width, height, merged_from):
+    def insert_merged_line(self, document_id, page_nr, text, x, y, width, height, n_lines_below, merged_from):
         line_nr = self.reader.get_highest_line_nr(document_id, page_nr) + 1
         self.insert_row("lines", ("document_id", "page_nr", "line_nr", "line_text", "x", "y", "width",
-                        "height", "merged"), (document_id, page_nr, line_nr, text, x, y, width, height, merged_from))
+                        "height", "n_lines_below", "merged"), (document_id, page_nr, line_nr, text, x, y, width, height, n_lines_below, merged_from))
         return True, line_nr
 
     def delete_document(self, document_id):

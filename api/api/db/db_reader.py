@@ -1,3 +1,6 @@
+from api.utils.line import Line
+from api.utils.page import Page
+from api.utils.document import Document
 from api.db.db_connection import DBConnection
 import numpy as np
 
@@ -11,6 +14,18 @@ class DBReader(DBConnection):
     def __init__(self) -> None:
         DBConnection.__init__(self)
 
+    def get_document_as_class(self, document_id):
+        doc = self.get_document(document_id)
+        raw_pages = self.get_pages_of_document(document_id)
+        pages = []
+        for page_nr, raw_page in enumerate(raw_pages):
+            chars = self.get_chars_of_page(document_id, page_nr)
+            lines = []
+            for raw_line in self.get_lines_of_page(document_id, page_nr):
+                lines.append(Line(raw_line["document_id"], raw_line["page_nr"], raw_line["line_nr"], raw_line["line_text"], raw_line["x"], raw_line["y"], raw_line["width"], raw_line["height"], label=raw_line["label"], n_lines_below=raw_line["n_lines_below"]))
+            page = Page(raw_page["document_id"], raw_page["page_nr"], raw_page["image_path"], raw_page["page_width"], raw_page["page_height"], lines, chars, n_horizontal_lines=raw_page["n_horizontal_lines"])
+            pages.append(page)
+        return Document(doc["document_id"], doc["title"], doc["dataset_id"], pages)
 
     def get_all_datasets(self):
         return self.get_rows('datasets')

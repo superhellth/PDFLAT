@@ -40,6 +40,7 @@ app.add_middleware(
 db_reader = DBReader()
 db_writer = DBWriter()
 
+
 def get_position(element):
     """Calculate the position of a given BeautifulSoup element.
 
@@ -121,13 +122,15 @@ def parse_pdf(doc_id, doc_name, doc_path, dataset_id):
             # Create line objects ready for db
             x, y, width, height = get_position(line_object)
             word_objects = line_object.select('word')
-            line_text = " ".join([word_object.text for word_object in word_objects])
+            line_text = " ".join(
+                [word_object.text for word_object in word_objects])
             line = Line(doc_id, page_nr, line_nr,
                         line_text, x, y, width, height)
             lines.append(line)
 
-        pages.append(Page(doc_id, page_nr, image_path, page_width,
-                     page_height, lines, chars_by_page[page_nr]))
+        with pdfplumber.open(doc_path) as pdf:
+            pages.append(Page(doc_id, page_nr, image_path, page_width,
+                              page_height, lines, chars_by_page[page_nr], pdfplumber_page=pdf.pages[page_nr]))
 
     return Document(doc_id, doc_name, dataset_id, pages)
 
@@ -215,10 +218,12 @@ async def merge_lines(request: Request):
     width = max([region["x"] + region["width"] for region in regions]) - x
     height = max([region["y"] + region["height"] for region in regions]) - y
     text = "\n".join([region['line_text'] for region in regions])
-    merged_from = list(set([fr for region in regions for fr in region["merged"] if fr != {}] + [region["line_nr"] for region in regions]))
+    merged_from = list(set([fr for region in regions for fr in region["merged"] if fr != {
+    }] + [region["line_nr"] for region in regions]))
+    n_lines_below = min(region["n_lines_below"] for region in regions)
 
     success, line_nr = db_writer.insert_merged_line(
-        document_id, page_nr, text, x, y, width, height, merged_from)
+        document_id, page_nr, text, x, y, width, height, n_lines_below, merged_from)
 
     if success:
         return {'success': True, 'message': 'regions merged', 'region': db_reader.get_line(document_id, page_nr, line_nr), "delete_line_nrs": line_nrs}
@@ -294,7 +299,8 @@ async def create_label_for_dataset(request: Request):
     name = data.get("name")
     color = db_reader.get_available_color_for_dataset(dataset_id)
     id = db_reader.get_next_label_id_for_dataset(dataset_id)
-    db_writer.set_label_for_dataset(dataset_id, {'id': id, 'name': name, 'color': color})
+    db_writer.set_label_for_dataset(
+        dataset_id, {'id': id, 'name': name, 'color': color})
     return {'success': True, 'message': 'label created', 'label': {'id': id, 'name': name, 'color': color}}
 
 

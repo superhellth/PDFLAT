@@ -14,17 +14,15 @@ class PDFScanner:
     def __init__(self):
         pass
 
-    def get_line_features(self, doc_path):
-        doc = self.parse_pdf(doc_path)
+    def get_line_features(self, doc=None, doc_path=None):
+        if doc_path is not None:
+            doc = self.parse_pdf(doc_path)
         line_features_by_page = [
             self.page_lines_to_features(page) for page in doc.pages]
         line_features = [
             line_f for page_line_features in line_features_by_page for line_f in page_line_features]
         lines = [line for page in doc.pages for line in page.lines]
-        return lines, self.normalize(line_features)
-
-    def normalize(self, embeddings):
-        return np.nan_to_num((embeddings - np.mean(embeddings, axis=0)) / np.std(embeddings, axis=0), nan=0)
+        return lines, line_features
 
     def page_lines_to_features(self, page):
         page_lines = page.lines
@@ -33,7 +31,8 @@ class PDFScanner:
         line_distances = [lines_by_y_asc[i].y - (lines_by_y_asc[i - 1].y +
                                                  lines_by_y_asc[i - 1].height) for i in range(1, len(lines_by_y_asc))]
         median_line_distance = statistics.median(line_distances)
-        return np.array([np.array([median_x, median_line_distance, line.x, line.y, line.width, line.height]) for line in page_lines]) # page.find_num_lines_below_above_block(line, below=False),
+        # regex match
+        return np.array([np.array([median_x, median_line_distance, page.n_horizontal_lines, line.x, line.y, line.width, line.height, line.n_lines_below, len(line.text)]) for line in page_lines])
 
     def get_position(self, element):
         """Calculate the position of a given BeautifulSoup element.
@@ -67,6 +66,12 @@ class PDFScanner:
         doc_pages = doc.select('page')
 
         pages = []
+        chars_by_page = []
+
+        # Extract chars using PDFPlumber
+        with pdfplumber.open(doc_path) as pdf:
+            for page_nr, page in enumerate(pdf.pages):
+                chars_by_page.append(page.chars)
 
         # Extract lines using pdftotext
         page_width, page_height = int(np.floor(float(doc_pages[0]['width']))), int(
@@ -87,7 +92,7 @@ class PDFScanner:
             # Extract features using PDFPlumber
             with pdfplumber.open(doc_path) as pdf:
                 pages.append(Page(None, page_nr, None, page_width,
-                                  page_height, lines, None, pdfplumber_page=pdf.pages[page_nr]))
+                                  page_height, lines, chars_by_page[page_nr], pdfplumber_page=pdf.pages[page_nr]))
 
         return Document(None, None, None, pages)
 
