@@ -4,6 +4,7 @@ import statistics
 import pdfplumber
 import numpy as np
 from bs4 import BeautifulSoup
+from api.db.db_reader import DBReader
 from api.utils.line import Line
 from api.utils.page import Page
 from api.utils.document import Document
@@ -12,17 +13,41 @@ from api.utils.document import Document
 class PDFScanner:
 
     def __init__(self):
-        pass
+        self.reader = DBReader()
 
     def get_line_features(self, doc=None, doc_path=None):
         if doc_path is not None:
             doc = self.parse_pdf(doc_path)
+        if doc_path is not None:
+            lines_by_page = self.merge_lines([page.lines for page in doc.pages])
+            for i, page in enumerate(doc.pages):
+                page.lines = lines_by_page[i]
         line_features_by_page = [
             self.page_lines_to_features(page) for page in doc.pages]
         line_features = [
             line_f for page_line_features in line_features_by_page for line_f in page_line_features]
         lines = [line for page in doc.pages for line in page.lines]
         return lines, line_features
+    
+    def merge_lines(self, lines_by_page):
+        merged_by_page = []
+        for page_lines in lines_by_page:
+            page_lines_by_y = sorted(page_lines, key=lambda x: x.y, reverse=True)
+            highest_line_nr = max([line.line_nr for line in page_lines])
+            for t in range(5):
+                new_merged = []
+                merged_numbers = []
+                for i in range(len(page_lines_by_y) - 1):
+                    if page_lines_by_y[i].n_lines_below == 0 and page_lines_by_y[i + 1].n_lines_below == 0:
+                        if 7 < page_lines_by_y[i].x - page_lines_by_y[i + 1].x < 15:
+                                highest_line_nr += 1
+                                merged = page_lines_by_y[i + 1].merge(page_lines_by_y[i], highest_line_nr)
+                                new_merged.append(merged)
+                                merged_numbers += merged.merged
+                page_lines_by_y = sorted([line for line in page_lines_by_y if line.line_nr not in merged_numbers] + new_merged, key=lambda x: x.y, reverse=True)
+            merged_by_page.append(page_lines_by_y)
+        return merged_by_page
+
 
     def page_lines_to_features(self, page):
         page_lines = page.lines
@@ -31,8 +56,8 @@ class PDFScanner:
         line_distances = [lines_by_y_asc[i].y - (lines_by_y_asc[i - 1].y +
                                                  lines_by_y_asc[i - 1].height) for i in range(1, len(lines_by_y_asc))]
         median_line_distance = statistics.median(line_distances)
-        # regex match
-        return np.array([np.array([median_x, median_line_distance, page.n_horizontal_lines, line.x, line.y, line.width, line.height, line.n_lines_below, len(line.text)]) for line in page_lines])
+        regex_weight = 10
+        return np.array([np.array([regex_weight if line.matches_regex else 0, median_x, median_line_distance, page.n_horizontal_lines, line.x, line.y, line.width, line.height, line.n_lines_below * 10, len(line.text)]) for line in page_lines])
 
     def get_position(self, element):
         """Calculate the position of a given BeautifulSoup element.

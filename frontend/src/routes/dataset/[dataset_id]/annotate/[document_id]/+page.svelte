@@ -124,6 +124,8 @@
       selectedRegions = [newRegion.getNumber()];
     } else {
       selectedRegions = [...selectedRegions, number];
+      console.log(number)
+      console.log(regions)
     }
   }
 

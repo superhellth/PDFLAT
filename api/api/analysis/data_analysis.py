@@ -99,11 +99,11 @@ scanner = PDFScanner()
 labeled_lines = []
 labeled_vecs = []
 for document in documents:
-    lines, vecs = scanner.get_line_features(doc=reader.get_document_as_class(documents[0]))
+    lines, vecs = scanner.get_line_features(doc=reader.get_document_as_class(document))
     labeled_lines += lines
     labeled_vecs += vecs
 n_labeled = len(labeled_vecs)
-new_lines, new_vecs = scanner.get_line_features(doc_path="../../../container_data/data/c5cec3baf6ccc3940837ba410aacedcc.pdf")
+new_lines, new_vecs = scanner.get_line_features(doc_path="../../../container_data/data/CELEX_32023L1791_EN_TXT.pdf")
 all_vecs = labeled_vecs + new_vecs
 all_normed = normalize(all_vecs)
 labeled_vecs = all_vecs[0:n_labeled]
@@ -112,7 +112,7 @@ new_vecs = all_vecs[n_labeled:]
 # balance classes
 footnote_indices = [i for i, line in enumerate(labeled_lines) if line.label == footnote_label_id]
 normal_indices = [i for i, line in enumerate(labeled_lines) if line.label != footnote_label_id]
-selected_normal_indices = np.random.choice(normal_indices, len(footnote_indices) * 3, replace=False)
+selected_normal_indices = np.random.choice(normal_indices, len(footnote_indices) * 7, replace=False)
 selected_indices = np.union1d(selected_normal_indices, footnote_indices)
 
 labeled_vecs = [labeled_vecs[i] for i in selected_indices]
@@ -124,8 +124,8 @@ clf.fit(X_train, y_train)
 preds = clf.predict(X_test)
 correct_normal = len([1 for i, pred in enumerate(preds) if pred == -1 and y_test[i] == -1])
 correct_foot = len([1 for i, pred in enumerate(preds) if pred == 1 and y_test[i] == 1])
-correct_total = len([1 for i, pred in enumerate(preds) if pred ==  y_test[i]])
-print(f"Classified {len(preds)} / {len(all_lines)} lines.")
+correct_total = len([1 for i, pred in enumerate(preds) if pred == y_test[i]])
+print(f"Classified {len(preds)} / {len(labeled_vecs)} lines.")
 print(f"{correct_normal} correctly classified as non-foot")
 print(f"{correct_foot} correctly classified as foot")
 print(f"{correct_total} correctly classified")
@@ -139,4 +139,4 @@ for i in range(len(preds)):
         print("----------------")
 
 
-tsneplot(new_lines, new_vecs, footnote_label_id)
+# tsneplot(new_lines, new_vecs, footnote_label_id)
