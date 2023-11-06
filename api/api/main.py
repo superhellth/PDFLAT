@@ -221,9 +221,11 @@ async def merge_lines(request: Request):
     merged_from = list(set([fr for region in regions for fr in region["merged"] if fr != {
     }] + [region["line_nr"] for region in regions]))
     n_lines_below = min(region["n_lines_below"] for region in regions)
+    avg_char_size = np.sum([region["avg_char_size"] for region in regions]) / len(regions)
+    median_char_size = np.sum([region["median_char_size"] for region in regions]) / len(regions)
 
     success, line_nr = db_writer.insert_merged_line(
-        document_id, page_nr, text, x, y, width, height, n_lines_below, merged_from)
+        document_id, page_nr, text, x, y, width, height, n_lines_below, avg_char_size, median_char_size, merged_from)
 
     if success:
         return {'success': True, 'message': 'regions merged', 'region': db_reader.get_line(document_id, page_nr, line_nr), "delete_line_nrs": line_nrs}

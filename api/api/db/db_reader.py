@@ -22,8 +22,8 @@ class DBReader(DBConnection):
             chars = self.get_chars_of_page(document_id, page_nr)
             lines = []
             for raw_line in self.get_lines_of_page(document_id, page_nr):
-                lines.append(Line(raw_line["document_id"], raw_line["page_nr"], raw_line["line_nr"], raw_line["line_text"], raw_line["x"], raw_line["y"], raw_line["width"], raw_line["height"], label=raw_line["label"], n_lines_below=raw_line["n_lines_below"]))
-            page = Page(raw_page["document_id"], raw_page["page_nr"], raw_page["image_path"], raw_page["page_width"], raw_page["page_height"], lines, chars, n_horizontal_lines=raw_page["n_horizontal_lines"])
+                lines.append(Line(raw_line["document_id"], raw_line["page_nr"], raw_line["line_nr"], raw_line["line_text"], raw_line["x"], raw_line["y"], raw_line["width"], raw_line["height"], label=raw_line["label"], n_lines_below=raw_line["n_lines_below"], avg_char_size=raw_line["avg_char_size"], median_char_size=raw_line["median_char_size"]))
+            page = Page(raw_page["document_id"], raw_page["page_nr"], raw_page["image_path"], raw_page["page_width"], raw_page["page_height"], lines, chars, n_horizontal_lines=raw_page["n_horizontal_lines"], avg_char_size=raw_page["avg_char_size"], median_char_size=raw_page["median_char_size"])
             pages.append(page)
         return Document(doc["document_id"], doc["title"], doc["dataset_id"], pages)
 

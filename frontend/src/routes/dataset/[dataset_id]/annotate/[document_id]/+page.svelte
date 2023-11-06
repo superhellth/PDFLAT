@@ -151,12 +151,6 @@
     });
     let jsonData = await response.json();
 
-    // remove all deleted from regions
-    // regions = regions.filter(
-    //   (r) => !jsonData["delete_line_nrs"].includes(r.getNumber())
-    // );
-    selectedRegions = [];
-
     // add new region to regions
     regions = [...regions, new Region(activeType, jsonData.region, "grey")];
 

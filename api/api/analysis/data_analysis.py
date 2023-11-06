@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from api.db.db_reader import DBReader
 from api.analysis.pdf_scanner import PDFScanner
 
-DATASET_NAME = "Thesis"
+DATASET_NAME = "BA"
 FOOTNOTE_LABEL_NAME = "footnote"
 reader = DBReader()
 dataset = [dataset for dataset in reader.get_all_datasets() if dataset["name"] == DATASET_NAME][0]
@@ -45,8 +45,8 @@ def normalize_3(embeddings):
     return np.nan_to_num((embeddings - np.mean(embeddings, axis=0)) / np.std(embeddings, axis=0), nan=0)
 
 def tsneplot(lines, embeddings, footnote_label_id):
-    embs = np.empty((0, 9), dtype="f")
-    word_labels = ["" for line in lines]
+    embs = np.empty((0, 8), dtype="f")
+    word_labels = [line.text[:10] for line in lines]
     color_list = ["green" if line.label == footnote_label_id else "red" for line in lines]
 
     # adds the vector for each of the closest words to the array
@@ -103,7 +103,7 @@ for document in documents:
     labeled_lines += lines
     labeled_vecs += vecs
 n_labeled = len(labeled_vecs)
-new_lines, new_vecs = scanner.get_line_features(doc_path="../../../container_data/data/CELEX_32023L1791_EN_TXT.pdf")
+new_lines, new_vecs = scanner.get_line_features(doc_path="../../../container_data/data/230207_148x210_BMG_Ratgeber-Krankenversicherung_2301_3_BF_LNF.pdf")
 all_vecs = labeled_vecs + new_vecs
 all_normed = normalize(all_vecs)
 labeled_vecs = all_vecs[0:n_labeled]
@@ -112,7 +112,7 @@ new_vecs = all_vecs[n_labeled:]
 # balance classes
 footnote_indices = [i for i, line in enumerate(labeled_lines) if line.label == footnote_label_id]
 normal_indices = [i for i, line in enumerate(labeled_lines) if line.label != footnote_label_id]
-selected_normal_indices = np.random.choice(normal_indices, len(footnote_indices) * 7, replace=False)
+selected_normal_indices = np.random.choice(normal_indices, len(footnote_indices) * 2, replace=False)
 selected_indices = np.union1d(selected_normal_indices, footnote_indices)
 
 labeled_vecs = [labeled_vecs[i] for i in selected_indices]
@@ -139,4 +139,4 @@ for i in range(len(preds)):
         print("----------------")
 
 
-# tsneplot(new_lines, new_vecs, footnote_label_id)
+tsneplot(new_lines[:400], new_vecs[:400], footnote_label_id)

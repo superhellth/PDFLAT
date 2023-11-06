@@ -23,7 +23,7 @@ class PDFScanner:
             for i, page in enumerate(doc.pages):
                 page.lines = lines_by_page[i]
         line_features_by_page = [
-            self.page_lines_to_features(page) for page in doc.pages]
+            self.page_lines_to_features(page) for page in doc.pages if len(page.lines) > 1]
         line_features = [
             line_f for page_line_features in line_features_by_page for line_f in page_line_features]
         lines = [line for page in doc.pages for line in page.lines]
@@ -33,7 +33,10 @@ class PDFScanner:
         merged_by_page = []
         for page_lines in lines_by_page:
             page_lines_by_y = sorted(page_lines, key=lambda x: x.y, reverse=True)
-            highest_line_nr = max([line.line_nr for line in page_lines])
+            if len(page_lines) > 0:
+                highest_line_nr = max([line.line_nr for line in page_lines])
+            else:
+                highest_line_nr = 0
             for t in range(5):
                 new_merged = []
                 merged_numbers = []
@@ -57,7 +60,7 @@ class PDFScanner:
                                                  lines_by_y_asc[i - 1].height) for i in range(1, len(lines_by_y_asc))]
         median_line_distance = statistics.median(line_distances)
         regex_weight = 10
-        return np.array([np.array([regex_weight if line.matches_regex else 0, median_x, median_line_distance, page.n_horizontal_lines, line.x, line.y, line.width, line.height, line.n_lines_below * 10, len(line.text)]) for line in page_lines])
+        return np.array([np.array([regex_weight if line.matches_regex else 0, median_x, median_line_distance, page.median_n_lines_below - line.n_lines_below, page.median_char_size - line.median_char_size, line.x, line.y, line.width]) for line in page_lines])
 
     def get_position(self, element):
         """Calculate the position of a given BeautifulSoup element.
