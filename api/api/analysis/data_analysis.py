@@ -103,7 +103,7 @@ for document in documents:
     labeled_lines += lines
     labeled_vecs += vecs
 n_labeled = len(labeled_vecs)
-new_lines, new_vecs = scanner.get_line_features(doc_path="../../../container_data/data/230207_148x210_BMG_Ratgeber-Krankenversicherung_2301_3_BF_LNF.pdf")
+new_lines, new_vecs = scanner.get_line_features(doc_path="../../../container_data/data/CELEX_32022R0869_EN_TXT.pdf")
 all_vecs = labeled_vecs + new_vecs
 all_normed = normalize(all_vecs)
 labeled_vecs = all_vecs[0:n_labeled]
@@ -112,7 +112,7 @@ new_vecs = all_vecs[n_labeled:]
 # balance classes
 footnote_indices = [i for i, line in enumerate(labeled_lines) if line.label == footnote_label_id]
 normal_indices = [i for i, line in enumerate(labeled_lines) if line.label != footnote_label_id]
-selected_normal_indices = np.random.choice(normal_indices, len(footnote_indices) * 2, replace=False)
+selected_normal_indices = np.random.choice(normal_indices, len(footnote_indices) * 6, replace=False)
 selected_indices = np.union1d(selected_normal_indices, footnote_indices)
 
 labeled_vecs = [labeled_vecs[i] for i in selected_indices]
@@ -134,9 +134,9 @@ print(f"Of which {len([1 for i, pred in enumerate(preds) if pred != y_test[i] an
 
 preds = clf.predict(new_vecs)
 for i in range(len(preds)):
-    if preds[i] == 1:
+    if preds[i] == 1 and len(new_lines[i].text) > 7 and new_lines[i].matches_regex:
         print(new_lines[i].text)
         print("----------------")
 
 
-tsneplot(new_lines[:400], new_vecs[:400], footnote_label_id)
+# tsneplot(new_lines[:400], new_vecs[:400], footnote_label_id)

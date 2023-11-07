@@ -22,6 +22,7 @@ class Line:
             self.median_char_size = -1
         self.merged = merged
         self.matches_regex = re.match(r'[(][ ]?\d+[ ]?[)] ', self.text.strip()) is not None and re.match(r'[(][ ]?\d+[ ]?[)] ', self.text.strip()).start() == 0
+        self.special_percent = len([c for c in self.text if c.isalpha()]) / len(self.text)
 
     def merge(self, line, number):
         if self.document_id != line.document_id or self.page_nr != line.page_nr:

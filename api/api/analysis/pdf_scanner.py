@@ -60,7 +60,7 @@ class PDFScanner:
                                                  lines_by_y_asc[i - 1].height) for i in range(1, len(lines_by_y_asc))]
         median_line_distance = statistics.median(line_distances)
         regex_weight = 10
-        return np.array([np.array([regex_weight if line.matches_regex else 0, median_x, median_line_distance, page.median_n_lines_below - line.n_lines_below, page.median_char_size - line.median_char_size, line.x, line.y, line.width]) for line in page_lines])
+        return np.array([np.array([regex_weight if line.matches_regex else 0, median_x - line.x, page.median_n_lines_below - line.n_lines_below, page.median_char_size - line.median_char_size, line.y, line.special_percent]) for line in page_lines])
 
     def get_position(self, element):
         """Calculate the position of a given BeautifulSoup element.
