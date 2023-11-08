@@ -101,7 +101,7 @@ class DBWriter(DBConnection):
         return self.delete_row("lines", ("document_id", "page_nr", "line_nr"), (document_id, page_nr, line_nr))
 
     def delete_char(self, document_id, page_nr, char_nr):
-        return self.delete_row("lines", ("document_id", "page_nr", "char_nr"), (document_id, page_nr, char_nr))
+        return self.delete_row("chars", ("document_id", "page_nr", "char_nr"), (document_id, page_nr, char_nr))
 
     def delete_dataset(self, dataset_id):
         return self.delete_row("datasets", ("dataset_id",), (dataset_id,))

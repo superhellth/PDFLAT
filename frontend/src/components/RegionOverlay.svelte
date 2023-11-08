@@ -38,7 +38,7 @@
   on:keydown={() => {}}
   class="absolute bg-{color}-200 border-{color}-400 bg-opacity-20 border-{selected
     ? region.getType() == "line" ? '4' : '2'
-    : region.getType() == "line" ? '2' : '1'} {labelled
+    : region.getType() == "line" || color != "gray" ? '2' : '1'} {labelled
     ? 'z-[15]'
     : 'z-20'} hover:z-30 rounded-md outline-0 outline-[rgba(255,255,255,0)] hover:outline-[9999px] transition-all duration-300 hover:outline hover:outline-[rgba(255,255,255,0.8)]"
   style="

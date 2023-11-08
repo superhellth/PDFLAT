@@ -24,7 +24,6 @@
   let marking = false;
 
   onMount(async () => {
-    console.log(data);
     for (var page of data.document.pages) {
       allPageNumbers.push(page.page_nr);
     }
@@ -34,10 +33,12 @@
 
   function updateHidden(regs: Region[]) {
     // console.log("Update hidden")
-    hidden = [];
-    for (let reg of regs) {
-      for (var n of reg.getMergedFrom()) {
-        hidden.push(n);
+    if (activeType == "line") {
+      hidden = [];
+      for (let reg of regs) {
+        for (var n of reg.getMergedFrom()) {
+          hidden.push(n);
+        }
       }
     }
     // console.log(hidden)
@@ -114,18 +115,22 @@
 
   async function selectRegion(number: any) {
     console.log("Select");
+    for (var region of regions) {
+      if (region.getLabel() != -1) {
+        console.log(region);
+      }
+    }
     if (selectedRegions.indexOf(number) !== -1) {
       selectedRegions = selectedRegions.filter((r) => r !== number);
       return;
     }
-    if (selectedRegions.length > 0) {
+    if (selectedRegions.length > 0 && activeType == "line") {
       let newRegion = await mergeRegions(number);
       newRegion = new Region(activeType, newRegion, "grey");
       selectedRegions = [newRegion.getNumber()];
     } else {
       selectedRegions = [...selectedRegions, number];
-      console.log(number)
-      console.log(regions)
+      console.log(selectedRegions);
     }
   }
 

@@ -1,6 +1,7 @@
 import os
 import io
 import statistics
+from collections import defaultdict
 import pdfplumber
 import numpy as np
 from bs4 import BeautifulSoup
@@ -18,7 +19,6 @@ class PDFScanner:
     def get_line_features(self, doc=None, doc_path=None):
         if doc_path is not None:
             doc = self.parse_pdf(doc_path)
-        if doc_path is not None:
             lines_by_page = self.merge_lines([page.lines for page in doc.pages])
             for i, page in enumerate(doc.pages):
                 page.lines = lines_by_page[i]
@@ -28,6 +28,14 @@ class PDFScanner:
             line_f for page_line_features in line_features_by_page for line_f in page_line_features]
         lines = [line for page in doc.pages for line in page.lines]
         return lines, line_features
+    
+    def get_char_features(self, doc=None, doc_path=None):
+        if doc_path is not None:
+            doc = self.parse_pdf(doc_path)
+        char_features_by_page = [self.page_chars_to_features(page) for page in doc.pages if len(page.chars) > 1]
+        char_features = [char_f for page_char_features in char_features_by_page for char_f in page_char_features]
+        chars = [char for page in doc.pages for char in page.chars]
+        return chars, char_features
     
     def merge_lines(self, lines_by_page):
         merged_by_page = []
@@ -61,6 +69,18 @@ class PDFScanner:
         median_line_distance = statistics.median(line_distances)
         regex_weight = 10
         return np.array([np.array([regex_weight if line.matches_regex else 0, median_x - line.x, page.median_n_lines_below - line.n_lines_below, page.median_char_size - line.median_char_size, line.y, line.special_percent]) for line in page_lines])
+
+    def page_chars_to_features(self, page):
+        page_chars = page.chars
+        # print(page_chars)
+        median_char_height = statistics.median([char["height"] for char in page_chars])
+        median_char_width = statistics.median([char["width"] for char in page_chars])
+        bottom_dict = defaultdict(int)
+        for char in page_chars:
+            if "y" not in char:
+                char["y"] = char["top"]
+            bottom_dict[int(char["y"] + char["height"])] += 1
+        return np.array([np.array([char["width"] - median_char_width, char["height"] - median_char_height, bottom_dict[int(char["y"] + char["height"])]]) for char in page_chars])
 
     def get_position(self, element):
         """Calculate the position of a given BeautifulSoup element.
