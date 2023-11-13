@@ -43,9 +43,6 @@ for document_id in documents:
     lines_by_page_by_doc.append(lines_by_page)
 print(f"Data from {pages} pages")
 
-def normalize_3(embeddings):
-    return np.nan_to_num((embeddings - np.mean(embeddings, axis=0)) / np.std(embeddings, axis=0), nan=0)
-
 def tsneplot(lines, embeddings, footnote_label_id):
     embs = np.empty((0, 8), dtype="f")
     word_labels = [line.text[:10] for line in lines]
