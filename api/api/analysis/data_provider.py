@@ -1,9 +1,8 @@
 import numpy as np
 import os
 from sklearn import svm
-
+import pickle
 from sklearn.model_selection import train_test_split
-from api.analysis.pdf_scanner import PDFScanner
 from api.db.db_reader import DBReader
 
 class DataProvider:
@@ -13,6 +12,8 @@ class DataProvider:
         self.reference_label_name = reference_label_name
         self.data_dir = data_dir
         self.data_path = self.data_dir + "vecs.npy"
+        self.line_svm_path = self.data_dir + "line_svm.pkl"
+        self.char_svm_path = self.data_dir + "char_svm.pkl"
         self.reader = DBReader()
         self.dataset = [dataset for dataset in self.reader.get_all_datasets() if dataset["name"] == self.dataset_name][0]
         self.document_ids = [document["document_id"] for document in self.reader.get_documents_of_dataset(self.dataset["dataset_id"])]
@@ -21,6 +22,22 @@ class DataProvider:
 
         if not os.path.exists(self.data_dir):
             os.mkdir(self.data_dir)
+
+        if os.path.exists(self.line_svm_path):
+            self.line_svm_trained = True
+            with open(self.line_svm_path, "rb") as f:
+                self.line_svm = pickle.load(f)
+        else:
+            self.line_svm_trained = False
+            self.line_svm = None
+
+        if os.path.exists(self.char_svm_path):
+            self.char_svm_trained = True
+            with open(self.char_svm_path, "rb") as f:
+                self.char_svm = pickle.load(f)
+        else:
+            self.char_svm_trained = False
+            self.char_svm = None
 
         if os.path.exists(self.data_path):
             self.data_loaded = True
@@ -40,9 +57,37 @@ class DataProvider:
             self.line_vecs_normed = None
             self.char_vecs_normed = None
 
-    def train_and_test_svm(self, X_train, X_test, y_train, y_test):
+    def get_trained_svm(self, type="lines", retrain=False, balance_ratio=4, reload_data=False, run_test=False, test_size=0.33):
+        X_train, X_test, y_train, y_test = self.get_splits(type=type, normed=True, test_size=test_size, balance_ratio=balance_ratio, reload_data=reload_data)
+        clf = None
+        if type == "lines" and self.line_svm_trained and not retrain:
+            clf = self.line_svm
+        elif type == "chars" and self.char_svm_trained and not retrain:
+            clf = self.char_svm
+        if not run_test:
+            test_size = 0
+        if clf is not None:
+            self.test_svm(clf, X_test, y_test)
+            return clf
+        clf = self.train_svm(X_train, X_test, y_train, y_test, run_test=run_test)
+        if type == "lines":
+            self.line_svm = clf
+            path = self.line_svm_path
+        elif type == "chars":
+            self.char_svm = clf
+            path = self.char_svm_path
+        with open(path, "wb") as f:
+            pickle.dump(clf, f)
+        return clf
+
+    def train_svm(self, X_train, X_test, y_train, y_test, run_test=True):
         clf = svm.SVC()
         clf.fit(X_train, y_train)
+        if run_test:
+            self.test_svm(clf, X_test, y_test)
+        return clf
+    
+    def test_svm(self, clf, X_test, y_test):
         preds = clf.predict(X_test)
         correct_normal = len([1 for i, pred in enumerate(preds) if pred == -1 and y_test[i] == -1])
         correct_foot = len([1 for i, pred in enumerate(preds) if pred == 1 and y_test[i] == 1])
@@ -53,10 +98,9 @@ class DataProvider:
         print(f"{correct_total} correctly classified")
         print(f"{len(preds) - correct_total} wrongly classified")
         print(f"Of which {len([1 for i, pred in enumerate(preds) if pred != y_test[i] and y_test[i] == 1])} were negatives")
-        return clf
-        
-    def get_splits(self, type="lines", normed=True, test_size=0.33, balance_ratio=4, random_state=42, retrain=False):
-        if not self.data_loaded or retrain:
+
+    def get_splits(self, type="lines", normed=True, test_size=0.33, balance_ratio=4, random_state=42, reload_data=False):
+        if not self.data_loaded or reload_data:
             self.load_training_data()
         if type == "lines":
             labels = self.line_labels
@@ -124,29 +168,3 @@ class DataProvider:
             np.save(f, self.char_labels)
             np.save(f, self.char_vecs)
             np.save(f, self.char_vecs_normed)
-
-
-trainer = DataProvider(dataset_name="BA", data_dir="./data/")
-scanner = PDFScanner()
-print("Type: Lines")
-X_train, X_test, y_train, y_test = trainer.get_splits(type="lines", normed=True, test_size=0.33, balance_ratio=4, retrain=False)
-line_svm = trainer.train_and_test_svm(X_train, X_test, y_train, y_test)
-print()
-print("Type: Chars")
-X_train, X_test, y_train, y_test = trainer.get_splits(type="chars", normed=True, test_size=0.33, balance_ratio=4, retrain=False)
-char_svm = trainer.train_and_test_svm(X_train, X_test, y_train, y_test)
-
-new_lines, new_vecs_line = scanner.get_line_features(doc_path="../../../container_data/data/CELEX_32022R0869_EN_TXT.pdf")
-labels = [1 if line.label == trainer.footnote_label_id else -1 for line in new_lines]
-normed_vecs = trainer.normalize(new_vecs_line)
-preds = line_svm.predict(normed_vecs)
-footnotes_by_page = {}
-for i, pred in enumerate(preds):
-    if pred == 1 and len(new_lines[i].text) > 7 and new_lines[i].matches_regex:
-        page_nr = new_lines[i].page_nr
-        if page_nr in footnotes_by_page:
-            footnotes_by_page[page_nr].append(new_lines[i])
-        else:
-            footnotes_by_page[page_nr] = [new_lines[i]]
-
-# print(len(footnotes_by_page.items()))

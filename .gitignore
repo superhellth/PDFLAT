@@ -1,6 +1,7 @@
 # Project specific
 container_data/
 *.npy
+*.pkl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
