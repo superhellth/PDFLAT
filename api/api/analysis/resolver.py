@@ -8,6 +8,32 @@ class FootnoteResolver:
         self.scanner = PDFScanner()
         self.trainer = svm_trainer
 
+    def insert_footnotes(self, blocks_by_page, footnotes_by_page):
+        filtered_blocks_by_page = []
+        for page, page_blocks in enumerate(blocks_by_page):
+            if page in footnotes_by_page:
+                page_footnotes = footnotes_by_page[page]
+            else:
+                page_footnotes = []
+
+            filtered_page_blocks = []
+            for block in page_blocks:
+                block_contains = self.contains_reference(block["x"], block["y"], block["width"], block["height"], page_footnotes)
+                if block_contains != []:
+                    for fr in block_contains:
+                        block["text"] += "\n" + fr[0].text
+                filtered_page_blocks.append(block)
+            filtered_blocks_by_page.append(filtered_page_blocks)
+        return filtered_blocks_by_page
+
+    def contains_reference(self, x, y, width, height, fr_pairs):
+        contains = []
+        for fr in fr_pairs:
+            reference = fr[1]
+            if x < reference["x0"] < x + width and y < reference["top"] < y + height:
+                contains.append(fr)
+        return contains
+
     def resolve_footnotes(self, path_to_pdf, line_svm, char_svm):
         new_chars, new_vecs_char = self.scanner.get_char_features(doc_path=path_to_pdf)
         normed_vecs = self.trainer.normalize(new_vecs_char, type="chars")

@@ -67,7 +67,8 @@ class DataProvider:
         if not run_test:
             test_size = 0
         if clf is not None:
-            self.test_svm(clf, X_test, y_test)
+            if run_test:
+                self.test_svm(clf, X_test, y_test)
             return clf
         clf = self.train_svm(X_train, X_test, y_train, y_test, run_test=run_test)
         if type == "lines":

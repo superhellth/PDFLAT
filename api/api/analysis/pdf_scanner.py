@@ -16,6 +16,30 @@ class PDFScanner:
     def __init__(self):
         self.reader = DBReader()
 
+    def pdf_to_blocks(self, doc_path, footnotes=None):
+        # Convert pdf to xml using pdftotext
+        xml_path = doc_path.replace('.pdf', '.xml')
+        os.system(
+            f'pdftotext -bbox-layout {doc_path} {xml_path}')
+        file_handler = io.open(xml_path,
+                               mode="r", encoding="utf-8").read()
+        soup = BeautifulSoup(file_handler, 'lxml-xml')
+        doc = soup.find('doc')
+        doc_pages = doc.select('page')
+
+        blocks_by_page = []
+        for i, page in enumerate(doc_pages):
+            blocks = page.select('block')
+            blocks_of_page = []
+            for j, block in enumerate(blocks):
+                x, y, width, height = self.get_position(block)
+                word_objects = block.select('word')
+                block_text = " ".join(
+                    [word_object.text for word_object in word_objects])
+                blocks_of_page.append({"text": block_text, "x": x, "y": y, "width": width, "height": height, "page": i})
+            blocks_by_page.append(blocks_of_page)
+        return blocks_by_page
+
     def get_line_features(self, doc=None, doc_path=None):
         if doc_path is not None:
             doc = self.parse_pdf(doc_path)
@@ -143,8 +167,3 @@ class PDFScanner:
                                   page_height, lines, chars_by_page[page_nr], pdfplumber_page=pdf.pages[page_nr]))
 
         return Document(None, None, None, pages)
-
-
-# scanner = PDFScanner()
-# print(scanner.get_line_features(
-#     "../../../container_data/data/0fbb77ce73a0e84c4c7ba9268b9bd88b.pdf"))

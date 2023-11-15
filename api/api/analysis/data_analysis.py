@@ -5,6 +5,7 @@ import pandas as pd
 import seaborn as sns
 from api.analysis.data_provider import DataProvider
 from api.analysis.resolver import FootnoteResolver
+from api.analysis.pdf_scanner import PDFScanner
 
 trainer = DataProvider(dataset_name="BA", data_dir="./data/")
 line_svm = trainer.get_trained_svm(type="lines", retrain=False, balance_ratio=4, reload_data=False, run_test=False)
@@ -12,14 +13,27 @@ char_svm = trainer.get_trained_svm(type="chars", retrain=False, balance_ratio=3,
 
 resolver = FootnoteResolver(trainer)
 path = "../../../container_data/data/CELEX_32022R0869_EN_TXT.pdf"
+scanner = PDFScanner()
+raw_blocks = scanner.pdf_to_blocks(path)
+
+with open("./log.txt", "w", encoding="utf-8") as f:
+    f.write(str(raw_blocks))
+
 tuples_by_page = resolver.resolve_footnotes(path, line_svm, char_svm)
 
-for page, page_list in tuples_by_page.items():
-    for tup in page_list:
-        print(tup[0].text)
-        print("<>")
-        print(tup[1])
-        print("--------------")
+enriched_blocks = resolver.insert_footnotes(raw_blocks, tuples_by_page)
+with open("./log.txt", "a", encoding="utf-8") as f:
+    f.write("\n\n")
+    f.write(str(enriched_blocks))
+
+# for page, page_list in tuples_by_page.items():
+#     for tup in page_list:
+#         print(tup[0].text)
+#         print("<>")
+#         print(tup[1])
+#         print("--------------")
+
+
 
 def tsneplot(lines, embeddings, footnote_label_id):
     embs = np.empty((0, 8), dtype="f")
