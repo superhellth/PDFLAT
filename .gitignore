@@ -2,6 +2,7 @@
 container_data/
 *.npy
 *.pkl
+*.html
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
