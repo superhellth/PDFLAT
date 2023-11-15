@@ -3,30 +3,23 @@ import numpy as np
 from sklearn.manifold import TSNE
 import pandas as pd
 import seaborn as sns
-
 from api.analysis.data_provider import DataProvider
-from api.analysis.pdf_scanner import PDFScanner
 from api.analysis.resolver import FootnoteResolver
 
 trainer = DataProvider(dataset_name="BA", data_dir="./data/")
-scanner = PDFScanner()
-resolver = FootnoteResolver()
-print("Type: Lines")
-line_svm = trainer.get_trained_svm(type="lines", retrain=False, balance_ratio=4, reload_data=False, run_test=True)
-print()
-print("Type: Chars")
-char_svm = trainer.get_trained_svm(type="chars", retrain=False, balance_ratio=3, reload_data=False, run_test=True)
+line_svm = trainer.get_trained_svm(type="lines", retrain=False, balance_ratio=4, reload_data=False, run_test=False)
+char_svm = trainer.get_trained_svm(type="chars", retrain=False, balance_ratio=3, reload_data=False, run_test=False)
 
-new_chars, new_vecs_char = scanner.get_char_features(doc_path="../../../container_data/data/CELEX_32022R0869_EN_TXT.pdf")
-normed_vecs = trainer.normalize(new_vecs_char, type="chars")
-references_by_page = resolver.extract_references(char_svm, new_chars, normed_vecs)
-print(resolver.merge_reference_chars(references_by_page))
+resolver = FootnoteResolver(trainer)
+path = "../../../container_data/data/CELEX_32022R0869_EN_TXT.pdf"
+tuples_by_page = resolver.resolve_footnotes(path, line_svm, char_svm)
 
-# new_lines, new_vecs_line = scanner.get_line_features(doc_path="../../../container_data/data/CELEX_32022R0869_EN_TXT.pdf")
-# normed_vecs = trainer.normalize(new_vecs_line)
-# footnotes_by_page = resolver.extract_footnotes(line_svm, new_lines, normed_vecs)
-# print(foootnote_by_page)
-
+for page, page_list in tuples_by_page.items():
+    for tup in page_list:
+        print(tup[0].text)
+        print("<>")
+        print(tup[1])
+        print("--------------")
 
 def tsneplot(lines, embeddings, footnote_label_id):
     embs = np.empty((0, 8), dtype="f")

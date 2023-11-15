@@ -1,10 +1,38 @@
 from api.analysis.pdf_scanner import PDFScanner
+from api.analysis.data_provider import DataProvider
 
 
 class FootnoteResolver:
 
-    def __init__(self):
+    def __init__(self, svm_trainer: DataProvider):
         self.scanner = PDFScanner()
+        self.trainer = svm_trainer
+
+    def resolve_footnotes(self, path_to_pdf, line_svm, char_svm):
+        new_chars, new_vecs_char = self.scanner.get_char_features(doc_path=path_to_pdf)
+        normed_vecs = self.trainer.normalize(new_vecs_char, type="chars")
+        references_by_page = self.extract_references(char_svm, new_chars, normed_vecs)
+
+        new_lines, new_vecs_line = self.scanner.get_line_features(doc_path=path_to_pdf)
+        normed_vecs = self.trainer.normalize(new_vecs_line)
+        footnotes_by_page = self.extract_footnotes(line_svm, new_lines, normed_vecs)
+
+        return self.connect(footnotes_by_page, references_by_page)
+
+    def connect(self, footnotes_by_page, references_by_page):
+        tuples_by_page = {}
+        for page, page_footnotes in footnotes_by_page.items():
+            page_tuples = []
+            for footnote in page_footnotes:
+                extracted = self.extract_number(footnote.text)
+                if extracted is not None and page in references_by_page:
+                    for reference in references_by_page[page]:
+                        ref_text = reference["text"]
+                        if ref_text == str(extracted) and abs(reference["top"] - footnote.y) > 10:
+                            page_tuples.append((footnote, reference))
+                            break
+            tuples_by_page[page] = page_tuples
+        return tuples_by_page
 
     def extract_references(self, clf, chars, char_vecs):
         preds = clf.predict(char_vecs)
@@ -16,7 +44,7 @@ class FootnoteResolver:
                     references_by_page[page_nr].append(chars[i])
                 else:
                     references_by_page[page_nr] = [chars[i]]
-        return references_by_page
+        return self.merge_reference_chars(references_by_page)
         
     def extract_footnotes(self, clf, lines, line_vecs):
         preds = clf.predict(line_vecs)
@@ -24,15 +52,11 @@ class FootnoteResolver:
         for i, pred in enumerate(preds):
             if pred == 1 and len(lines[i].text) > 7 and lines[i].matches_regex:
                 page_nr = lines[i].page_nr
-                print(lines[i].text)
                 if page_nr in footnotes_by_page:
                     footnotes_by_page[page_nr].append(lines[i])
                 else:
                     footnotes_by_page[page_nr] = [lines[i]]
         return footnotes_by_page
-
-    def connect(self, footnotes, references):
-        pass
 
     def merge_reference_chars(self, references_by_page):
         merged_references_by_page = {}
@@ -52,6 +76,19 @@ class FootnoteResolver:
                     new_page_references.append(char)
             merged_references_by_page[page] = new_page_references
         return merged_references_by_page
+
+    def extract_number(self, text):
+        if not any(char.isdigit() for char in text):
+            return None
+        start = -1
+        end = -1
+        for i, char in enumerate(text):
+            if char in "0123456789" and start == -1:
+                start = i
+            if start != -1 and char not in "0123456789":
+                end = i
+                break
+        return int(text[start:min(end, len(text))])
 
     def merge(self, char1, char2):
         merged_char = {}
