@@ -1,22 +1,63 @@
+from bs4 import BeautifulSoup
 from duckduckgo_search import DDGS
+import requests
 
 class WebPageProvider:
     def __init__(self):
         pass
+
+    def get_html_url(self, query, max_considerations=5):
+        link_list = self.filter_eu_urls(self.get_urls(query, max_results=max_considerations))
+        if link_list == []:
+            print("No EUR-Lex URL found.")
+            return None
+        url = link_list[0]
+        if "EN/TXT/HTML" in url:
+            return url
+        print(f"Accessing: {url}")
+        response = requests.get(url)
+        if response.status_code != 200:
+            print("Couldn't access website.")
+            return None
+        soup = BeautifulSoup(response.text, 'html.parser')
+        links = soup.find_all('a')
+        refs = [link.get("href") for link in links]
+        filtered_refs = [ref for ref in refs if "EN/TXT/HTML" in ref]
+        if filtered_refs == []:
+            print("No matching URL found.")
+            return None
+        url = filtered_refs[0]
+        parts = url.split("/legal-content/")
+        url = "https://eur-lex.europa.eu/legal-content/" + parts[1]
+        return url
+
+    def get_text(self, url):
+        print(f"Accessing: {url}")
+        response = requests.get(url)
+        if response.status_code != 200:
+            print("Couldn't access website.")
+            return None
+        soup = BeautifulSoup(response.text, 'html.parser')
+        return soup.get_text()
+    
+    def get_text_from_footnote(self, footnote_text, max_considerations=5):
+        html_url = self.get_html_url(footnote_text, max_considerations=max_considerations)
+        if html_url is None:
+            return None
+        else:
+            return self.get_text(html_url)
 
     def filter_eu_urls(self, url_list):
         return [url for url in url_list if "https://eur-lex.europa.eu/legal-content/EN/TXT/" in url or "https://eur-lex.europa.eu/eli/reg/" in url]
 
     def get_urls(self, query, max_results=5):
         with DDGS() as ddgs:
-            results = [r["href"] for r in ddgs.text(query, max_results=max_results)]
+            results = [r["href"] for r in ddgs.text(query[:500], max_results=max_results)]
             return results
 
 page_provider = WebPageProvider()
 text = """
-Council Directive 2008/114/EC of 8 December 2008 on the identification and designation of European critical infrastructures and the 
-assessment of the need to improve their  protection (OJ L 345, 23.12.2008, p. 75).
-EN Official  Journal  of  the  European  Union 3.6.2022  L  152/47  
+Directive 2003/87/EC of the European Parliament and of the Council of 13 October 2003 establishing a system for greenhouse gas 
+emission allowance trading within the Union and amending Council Directive 96/61/EC (OJ L 275, 25.10.2003, p. 32).EN Official Journal of the European Union L 231/4  20.9.2023  
 """
-urls = page_provider.get_urls("eur-lex.europa" + text)
-print(page_provider.filter_eu_urls(urls))
+print(page_provider.get_text_from_footnote(text[:500]))

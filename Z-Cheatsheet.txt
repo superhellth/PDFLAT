@@ -4,3 +4,6 @@ docker run -p 6543:5432 -e POSTGRES_PASSWORD=PG_PASSWORD -e POSTGRES_DB=test_db 
 
 RUN API:
 uvicorn api:app --host 127.0.0.1 --port 1337 --reload
+
+SCRAPY:
+scrapy crawl quotes
