@@ -22,7 +22,7 @@ class WebPageProvider:
         soup = BeautifulSoup(response.text, 'html.parser')
         links = soup.find_all('a')
         refs = [link.get("href") for link in links]
-        filtered_refs = [ref for ref in refs if "EN/TXT/HTML" in ref]
+        filtered_refs = [ref for ref in refs if ref is not None and "EN/TXT/HTML" in ref]
         if filtered_refs == []:
             print("No matching URL found.")
             return None
@@ -48,16 +48,12 @@ class WebPageProvider:
             return self.get_text(html_url)
 
     def filter_eu_urls(self, url_list):
-        return [url for url in url_list if "https://eur-lex.europa.eu/legal-content/EN/TXT/" in url or "https://eur-lex.europa.eu/eli/reg/" in url]
+        return [url for url in url_list if "https://eur-lex.europa.eu/legal-content/EN/TXT/?" in url or "https://eur-lex.europa.eu/eli/reg/" in url]
 
     def get_urls(self, query, max_results=5):
         with DDGS() as ddgs:
-            results = [r["href"] for r in ddgs.text(query[:500], max_results=max_results)]
+            try:
+                results = [r["href"] for r in ddgs.text(query[:500], max_results=max_results)]
+            except:
+                return []
             return results
-
-page_provider = WebPageProvider()
-text = """
-Directive 2003/87/EC of the European Parliament and of the Council of 13 October 2003 establishing a system for greenhouse gas 
-emission allowance trading within the Union and amending Council Directive 96/61/EC (OJ L 275, 25.10.2003, p. 32).EN Official Journal of the European Union L 231/4  20.9.2023  
-"""
-print(page_provider.get_text_from_footnote(text[:500]))

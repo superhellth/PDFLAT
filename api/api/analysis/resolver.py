@@ -1,6 +1,6 @@
 from api.analysis.pdf_scanner import PDFScanner
 from api.analysis.data_provider import DataProvider
-
+import re
 
 class FootnoteResolver:
 
@@ -21,7 +21,15 @@ class FootnoteResolver:
                 block_contains = self.contains_reference(block["x"], block["y"], block["width"], block["height"], page_footnotes)
                 if block_contains != []:
                     for fr in block_contains:
-                        block["text"] += "\n" + fr[0].text
+                        block_text = block["text"]
+                        footnote_text = fr[0].text
+                        match = re.search("( " + fr[1]["text"] + " )", block_text)
+                        if match is not None:
+                            dot_pos = [index for index, char in enumerate(block_text) if char == '.' and index > match.start()]
+                            if dot_pos == []:
+                                block["text"] = block_text + "\n" + footnote_text
+                            else:
+                                block["text"] = block_text[0:dot_pos[0] + 1] + footnote_text + block_text[dot_pos[0] + 1:]
                 filtered_page_blocks.append(block)
             filtered_blocks_by_page.append(filtered_page_blocks)
         return filtered_blocks_by_page
@@ -54,7 +62,7 @@ class FootnoteResolver:
                 if extracted is not None and page in references_by_page:
                     for reference in references_by_page[page]:
                         ref_text = reference["text"]
-                        if ref_text == str(extracted) and abs(reference["top"] - footnote.y) > 10:
+                        if ref_text == str(extracted): # and abs(reference["top"] - footnote.y) > 10:
                             page_tuples.append((footnote, reference))
                             break
             tuples_by_page[page] = page_tuples

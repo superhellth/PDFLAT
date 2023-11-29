@@ -1,25 +1,56 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import yake
+from rank_bm25 import BM25Okapi
 from sklearn.manifold import TSNE
 import pandas as pd
 import seaborn as sns
 from api.analysis.data_provider import DataProvider
 from api.analysis.resolver import FootnoteResolver
 from api.analysis.pdf_scanner import PDFScanner
+from api.web.web_page_provider import WebPageProvider
 
+print("Training Classifiers...")
 trainer = DataProvider(dataset_name="BA", data_dir="./data/")
 line_svm = trainer.get_trained_svm(type="lines", retrain=False, balance_ratio=4, reload_data=False, run_test=False)
 char_svm = trainer.get_trained_svm(type="chars", retrain=False, balance_ratio=3, reload_data=False, run_test=False)
 
 resolver = FootnoteResolver(trainer)
-path = "../../../container_data/data/CELEX_32022R0869_EN_TXT.pdf"
+path = "../../../container_data/data/CELEX_32020R0740_EN_TXT.pdf"
 scanner = PDFScanner()
+print("Processing pdf...")
 raw_blocks = scanner.pdf_to_blocks(path)
 
 with open("./log.txt", "w", encoding="utf-8") as f:
     f.write(str(raw_blocks))
 
+print("Resolving footnotes...")
 tuples_by_page = resolver.resolve_footnotes(path, line_svm, char_svm)
+
+print("Enriching footnotes...")
+page_provider = WebPageProvider()
+kw_extractor = yake.KeywordExtractor()
+for page_tuples in tuples_by_page.items():
+    page_tuples = page_tuples[1]
+    for tuple in page_tuples:
+        footnote_line = tuple[0]
+        legal_act_text = page_provider.get_text_from_footnote(footnote_line.text)
+        if legal_act_text is not None:
+            ### keyword version
+            # keywords = kw_extractor.extract_keywords(legal_act_text)
+            # keyword_text = " ".join([keyword[0] for keyword in keywords])
+            # footnote_line.text = keyword_text
+            ### BM25 version
+            corpus = legal_act_text.split("\n\n")
+            tokenized_corpus = [doc.split(" ") for doc in corpus]
+            bm25 = BM25Okapi(tokenized_corpus)
+            tokenized_query = footnote_line.text.split(" ")
+            print("-------------")
+            print(footnote_line.text)
+            found = bm25.get_top_n(tokenized_query, corpus, n=1)[0]
+            print()
+            print(found)
+            footnote_line.text = found
 
 enriched_blocks = resolver.insert_footnotes(raw_blocks, tuples_by_page)
 with open("./log.txt", "a", encoding="utf-8") as f:
