@@ -8,6 +8,15 @@ class FootnoteResolver:
         self.scanner = PDFScanner()
         self.trainer = svm_trainer
 
+    def get_block_by_reference(self, blocks_by_page, reference):
+        for block in blocks_by_page[reference["page_number"] - 1]:
+            if block["x"] < reference["x0"] < block["x"] + block["width"] and block["y"] < reference["top"] < block["y"] + block["height"]:
+                block_text = block["text"]
+                footnote_text = reference["text"]
+                match = re.search("( " + footnote_text + " )", block_text)
+                if match is not None:
+                    return block
+
     def insert_footnotes(self, blocks_by_page, footnotes_by_page):
         filtered_blocks_by_page = []
         for page, page_blocks in enumerate(blocks_by_page):
@@ -18,6 +27,7 @@ class FootnoteResolver:
 
             filtered_page_blocks = []
             for block in page_blocks:
+                copy_block = {"x": block["x"], "y": block["y"], "width": block["width"], "height": block["height"], "text": block["text"], "page": block["page"]}
                 block_contains = self.contains_reference(block["x"], block["y"], block["width"], block["height"], page_footnotes)
                 if block_contains != []:
                     for fr in block_contains:
@@ -27,10 +37,10 @@ class FootnoteResolver:
                         if match is not None:
                             dot_pos = [index for index, char in enumerate(block_text) if char == '.' and index > match.start()]
                             if dot_pos == []:
-                                block["text"] = block_text + "\n" + footnote_text
+                                copy_block["text"] = block_text + "\n" + footnote_text
                             else:
-                                block["text"] = block_text[0:dot_pos[0] + 1] + footnote_text + block_text[dot_pos[0] + 1:]
-                filtered_page_blocks.append(block)
+                                copy_block["text"] = block_text[0:dot_pos[0] + 1] + footnote_text + block_text[dot_pos[0] + 1:]
+                filtered_page_blocks.append(copy_block)
             filtered_blocks_by_page.append(filtered_page_blocks)
         return filtered_blocks_by_page
 
@@ -133,4 +143,5 @@ class FootnoteResolver:
         else:
             text = char2["text"] + char1["text"]
         merged_char["text"] = text
+        merged_char["page_number"] = char1["page_number"]
         return merged_char

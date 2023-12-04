@@ -3,10 +3,12 @@ import numpy as np
 from sklearn.manifold import TSNE
 import pandas as pd
 import seaborn as sns
+import json
 from api.analysis.data_provider import DataProvider
 from api.analysis.resolver import FootnoteResolver
 from api.analysis.pdf_scanner import PDFScanner
 from api.analysis.enricher import Enricher
+from api.web.web_page_provider import WebPageProvider
 
 print("Training Classifiers...")
 trainer = DataProvider(dataset_name="BA", data_dir="./data/")
@@ -15,28 +17,30 @@ line_svm = trainer.get_trained_svm(
 char_svm = trainer.get_trained_svm(
     type="chars", retrain=False, balance_ratio=3, reload_data=False, run_test=False)
 
+print("Processing pdf...")
 resolver = FootnoteResolver(trainer)
 path = "../../../container_data/data/CELEX_32020R0740_EN_TXT.pdf"
 scanner = PDFScanner()
-print("Processing pdf...")
 raw_blocks = scanner.pdf_to_blocks(path)
 
-# with open("./log.txt", "w", encoding="utf-8") as f:
-#     f.write(str(raw_blocks))
+with open("./default.json", "w", encoding="utf-8") as f:
+    json.dump(raw_blocks, f)
 
-print("Resolving footnotes...")
+print("Resolving Footnotes...")
+page_provider = WebPageProvider()
 tuples_by_page = resolver.resolve_footnotes(path, line_svm, char_svm)
+
+print("Dereferencing Footnotes...")
+extended_tuples = {page: [(tuple[0], tuple[1], resolver.get_block_by_reference(raw_blocks, tuple[1])["text"], page_provider.get_text_from_footnote(
+                    tuple[0].text, max_considerations=10)) for tuple in tuples_by_page[page]] for page in tuples_by_page.keys()}   
 
 print("Enriching Footnotes...")
 enricher = Enricher()
-keyword_enriched = enricher.enrich(dict(tuples_by_page), mode="kw")
-bm25_enriched = enricher.enrich(dict(tuples_by_page), mode="bm25")
-summary_enriched = enricher.enrich(dict(tuples_by_page), mode="summary")
-
-inserted_enriched = resolver.insert_footnotes(raw_blocks, tuples_by_page)
-# with open("./log.txt", "a", encoding="utf-8") as f:
-#     f.write("\n\n")
-#     f.write(str(enriched_blocks))
+for mode in ["kw", "bm25", "summary"]:
+    enriched = enricher.enrich(dict(extended_tuples), mode=mode)
+    inserted_enriched = resolver.insert_footnotes(raw_blocks, tuples_by_page)
+    with open("./enriched-" + mode + ".json", "w", encoding="utf-8") as f:
+        json.dump(inserted_enriched, f)
 
 
 def tsneplot(lines, embeddings, footnote_label_id):

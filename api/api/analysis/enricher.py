@@ -7,19 +7,16 @@ from api.web.web_page_provider import WebPageProvider
 class Enricher:
 
     def __init__(self):
-        print("Enriching footnotes...")
-        self.page_provider = WebPageProvider()
         self.kw_extractor = yake.KeywordExtractor()
         self.t5_tokenizer = AutoTokenizer.from_pretrained('t5-base')
         self.t5 = AutoModelWithLMHead.from_pretrained('t5-base', return_dict=True)
     
-    def enrich(self, footnote_by_page, mode="kw"):
-        for page_tuples in footnote_by_page.items():
+    def enrich(self, footnotes_by_page, mode="kw"):
+        for page_tuples in footnotes_by_page.items():
             page_tuples = page_tuples[1]
             for tuple in page_tuples:
                 footnote_line = tuple[0]
-                legal_act_text = self.page_provider.get_text_from_footnote(
-                    footnote_line.text, max_considerations=10)
+                legal_act_text = tuple[3]
                 if legal_act_text is not None:
                     ### summary t5
                     if mode == "summary":
@@ -41,7 +38,7 @@ class Enricher:
                         corpus = legal_act_text.split("\n\n")
                         tokenized_corpus = [doc.split(" ") for doc in corpus]
                         bm25 = BM25Okapi(tokenized_corpus)
-                        tokenized_query = footnote_line.text.split(" ")
+                        tokenized_query = tuple[2].split(" ")
                         found = bm25.get_top_n(tokenized_query, corpus, n=1)[0]
                         footnote_line.text = found
-        return footnote_by_page
+        return footnotes_by_page
