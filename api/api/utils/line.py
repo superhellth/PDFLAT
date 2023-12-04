@@ -12,6 +12,9 @@ class Line:
         self.width = width
         self.height = height
         self.label = label
+        self.summary = ""
+        self.keywords = ""
+        self.bm25 = ""
         if n_lines_below is not None:
             self.n_lines_below = n_lines_below
             self.avg_char_size = avg_char_size

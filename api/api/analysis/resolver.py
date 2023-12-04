@@ -10,14 +10,14 @@ class FootnoteResolver:
 
     def get_block_by_reference(self, blocks_by_page, reference):
         for block in blocks_by_page[reference["page_number"] - 1]:
-            if block["x"] < reference["x0"] < block["x"] + block["width"] and block["y"] < reference["top"] < block["y"] + block["height"]:
+            if block["x"] - 2 <= reference["x0"] <= block["x"] + block["width"] + 2 and block["y"] - 2 <= reference["top"] <= block["y"] + block["height"] + 2:
                 block_text = block["text"]
                 footnote_text = reference["text"]
                 match = re.search("( " + footnote_text + " )", block_text)
                 if match is not None:
                     return block
 
-    def insert_footnotes(self, blocks_by_page, footnotes_by_page):
+    def insert_footnotes(self, blocks_by_page, footnotes_by_page, mode="insert"):
         filtered_blocks_by_page = []
         for page, page_blocks in enumerate(blocks_by_page):
             if page in footnotes_by_page:
@@ -32,7 +32,14 @@ class FootnoteResolver:
                 if block_contains != []:
                     for fr in block_contains:
                         block_text = block["text"]
-                        footnote_text = fr[0].text
+                        if mode == "insert":
+                            footnote_text = fr[0].text
+                        elif mode == "bm25":
+                            footnote_text = fr[0].bm25
+                        elif mode == "kw":
+                            footnote_text = fr[0].keywords
+                        elif mode == "summary":
+                            footnote_text = fr[0].summary
                         match = re.search("( " + fr[1]["text"] + " )", block_text)
                         if match is not None:
                             dot_pos = [index for index, char in enumerate(block_text) if char == '.' and index > match.start()]
@@ -48,7 +55,7 @@ class FootnoteResolver:
         contains = []
         for fr in fr_pairs:
             reference = fr[1]
-            if x < reference["x0"] < x + width and y < reference["top"] < y + height:
+            if x - 2 <= reference["x0"] <= x + width + 2 and y - 2 <= reference["top"] <= y + height + 2:
                 contains.append(fr)
         return contains
 

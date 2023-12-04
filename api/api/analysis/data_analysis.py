@@ -19,11 +19,12 @@ char_svm = trainer.get_trained_svm(
 
 print("Processing pdf...")
 resolver = FootnoteResolver(trainer)
-path = "../../../container_data/data/CELEX_32020R0740_EN_TXT.pdf"
+path = "../../../container_data/data/CELEX_32019R0943_EN_TXT.pdf"
+file_name = "CELEX_32019R0943_EN_TXT"
 scanner = PDFScanner()
 raw_blocks = scanner.pdf_to_blocks(path)
 
-with open("./default.json", "w", encoding="utf-8") as f:
+with open("./default-" + file_name + ".json", "w", encoding="utf-8") as f:
     json.dump(raw_blocks, f)
 
 print("Resolving Footnotes...")
@@ -31,15 +32,16 @@ page_provider = WebPageProvider()
 tuples_by_page = resolver.resolve_footnotes(path, line_svm, char_svm)
 
 print("Dereferencing Footnotes...")
-extended_tuples = {page: [(tuple[0], tuple[1], resolver.get_block_by_reference(raw_blocks, tuple[1])["text"], page_provider.get_text_from_footnote(
+extended_tuples = {page: [(tuple[0], tuple[1], resolver.get_block_by_reference(raw_blocks, tuple[1]), page_provider.get_text_from_footnote(
                     tuple[0].text, max_considerations=10)) for tuple in tuples_by_page[page]] for page in tuples_by_page.keys()}   
 
 print("Enriching Footnotes...")
 enricher = Enricher()
-for mode in ["kw", "bm25", "summary"]:
-    enriched = enricher.enrich(dict(extended_tuples), mode=mode)
-    inserted_enriched = resolver.insert_footnotes(raw_blocks, tuples_by_page)
-    with open("./enriched-" + mode + ".json", "w", encoding="utf-8") as f:
+for mode in ["insert", "bm25", "kw", "summary"]:
+    if mode != "insert":
+        enriched = enricher.enrich(dict(extended_tuples), mode=mode)
+    inserted_enriched = resolver.insert_footnotes(raw_blocks, tuples_by_page, mode=mode)
+    with open("./enriched-" + file_name + "-" + mode + ".json", "w", encoding="utf-8") as f:
         json.dump(inserted_enriched, f)
 
 

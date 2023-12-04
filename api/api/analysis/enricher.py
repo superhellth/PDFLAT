@@ -27,18 +27,21 @@ class Enricher:
                         summary_ids = self.t5.generate(inputs, max_length=150, min_length=80, length_penalty=5., num_beams=2)
                         summary = self.t5_tokenizer.decode(summary_ids[0])
                         if summary is not None:
-                            footnote_line.text = summary
+                            footnote_line.summary = footnote_line.summary + "\n" + summary
                     ### keyword version
                     if mode == "kw":
                         keywords = self.kw_extractor.extract_keywords(legal_act_text)
                         keyword_text = " ".join([keyword[0] for keyword in keywords])
-                        footnote_line.text = keyword_text
+                        footnote_line.keywords = footnote_line.keywords + "\n" + keyword_text
                     ### BM25 version
                     if mode == "bm25":
-                        corpus = legal_act_text.split("\n\n")
-                        tokenized_corpus = [doc.split(" ") for doc in corpus]
-                        bm25 = BM25Okapi(tokenized_corpus)
-                        tokenized_query = tuple[2].split(" ")
-                        found = bm25.get_top_n(tokenized_query, corpus, n=1)[0]
-                        footnote_line.text = found
+                        if tuple[2] is not None:
+                            corpus = legal_act_text.split("\n\n")
+                            tokenized_corpus = [doc.split(" ") for doc in corpus]
+                            bm25 = BM25Okapi(tokenized_corpus)
+                            tokenized_query = tuple[2]["text"].split(" ")
+                            found = bm25.get_top_n(tokenized_query, corpus, n=1)[0]
+                            footnote_line.bm25 = footnote_line.bm25 + "\n" + found
+                        else:
+                            print("No association found:")
         return footnotes_by_page
