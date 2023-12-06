@@ -4,6 +4,7 @@ from sklearn.manifold import TSNE
 import pandas as pd
 import seaborn as sns
 import json
+import sys
 from api.analysis.data_provider import DataProvider
 from api.analysis.resolver import FootnoteResolver
 from api.analysis.pdf_scanner import PDFScanner
@@ -16,6 +17,7 @@ line_svm = trainer.get_trained_svm(
     type="lines", retrain=False, balance_ratio=4, reload_data=False, run_test=False)
 char_svm = trainer.get_trained_svm(
     type="chars", retrain=False, balance_ratio=3, reload_data=False, run_test=False)
+# sys.exit(0)
 
 print("Processing pdf...")
 resolver = FootnoteResolver(trainer)

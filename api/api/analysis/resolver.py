@@ -31,7 +31,7 @@ class FootnoteResolver:
                 block_contains = self.contains_reference(block["x"], block["y"], block["width"], block["height"], page_footnotes)
                 if block_contains != []:
                     for fr in block_contains:
-                        block_text = block["text"]
+                        block_text = copy_block["text"]
                         if mode == "insert":
                             footnote_text = fr[0].text
                         elif mode == "bm25":

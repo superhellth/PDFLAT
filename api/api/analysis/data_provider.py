@@ -48,6 +48,10 @@ class DataProvider:
                 self.char_labels = np.load(f)
                 self.char_vecs = np.load(f)
                 self.char_vecs_normed = np.load(f)
+                # print(self.line_labels.shape)
+                # print(len(np.where(self.line_labels == 1)[0]))
+                # print(self.char_labels.shape)
+                # print(len(np.where(self.char_labels == 1)[0]))
         else:
             self.data_loaded = False
             self.line_labels = None
@@ -98,7 +102,7 @@ class DataProvider:
         print(f"{correct_foot} correctly classified as positive")
         print(f"{correct_total} correctly classified")
         print(f"{len(preds) - correct_total} wrongly classified")
-        print(f"Of which {len([1 for i, pred in enumerate(preds) if pred != y_test[i] and y_test[i] == 1])} were negatives")
+        print(f"Of which {len([1 for i, pred in enumerate(preds) if pred != y_test[i] and y_test[i] == 1])} were false negatives")
 
     def get_splits(self, type="lines", normed=True, test_size=0.33, balance_ratio=4, random_state=42, reload_data=False):
         if not self.data_loaded or reload_data:
