@@ -19,6 +19,7 @@ class FootnoteResolver:
 
     def insert_footnotes(self, blocks_by_page, footnotes_by_page, mode="insert"):
         filtered_blocks_by_page = []
+        inserted = 0
         for page, page_blocks in enumerate(blocks_by_page):
             if page in footnotes_by_page:
                 page_footnotes = footnotes_by_page[page]
@@ -42,6 +43,7 @@ class FootnoteResolver:
                             footnote_text = fr[0].summary
                         match = re.search("( " + fr[1]["text"] + " )", block_text)
                         if match is not None:
+                            inserted += 1
                             dot_pos = [index for index, char in enumerate(block_text) if char == '.' and index > match.start()]
                             if dot_pos == []:
                                 copy_block["text"] = block_text + "\n" + footnote_text
@@ -49,6 +51,7 @@ class FootnoteResolver:
                                 copy_block["text"] = block_text[0:dot_pos[0] + 1] + footnote_text + block_text[dot_pos[0] + 1:]
                 filtered_page_blocks.append(copy_block)
             filtered_blocks_by_page.append(filtered_page_blocks)
+        print(f"Inserted {inserted} footnotes")
         return filtered_blocks_by_page
 
     def contains_reference(self, x, y, width, height, fr_pairs):
@@ -63,10 +66,12 @@ class FootnoteResolver:
         new_chars, new_vecs_char = self.scanner.get_char_features(doc_path=path_to_pdf)
         normed_vecs = self.trainer.normalize(new_vecs_char, type="chars")
         references_by_page = self.extract_references(char_svm, new_chars, normed_vecs)
+        print(f"References found: {len([r for page in references_by_page.keys() for r in references_by_page[page]])}")
 
         new_lines, new_vecs_line = self.scanner.get_line_features(doc_path=path_to_pdf)
         normed_vecs = self.trainer.normalize(new_vecs_line)
         footnotes_by_page = self.extract_footnotes(line_svm, new_lines, normed_vecs)
+        print(f"Footnotes found: {len([f for page in footnotes_by_page.keys() for f in footnotes_by_page[page]])}")
 
         return self.connect(footnotes_by_page, references_by_page)
 

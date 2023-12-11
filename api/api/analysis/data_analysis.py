@@ -21,8 +21,8 @@ char_svm = trainer.get_trained_svm(
 
 print("Processing pdf...")
 resolver = FootnoteResolver(trainer)
-path = "../../../container_data/data/CELEX_32019R0943_EN_TXT.pdf"
-file_name = "CELEX_32019R0943_EN_TXT"
+path = "../../../container_data/data/CELEX_32017R1938_EN_TXT.pdf"
+file_name = "CELEX_32017R1938_EN_TXT"
 scanner = PDFScanner()
 raw_blocks = scanner.pdf_to_blocks(path)
 
@@ -36,6 +36,9 @@ tuples_by_page = resolver.resolve_footnotes(path, line_svm, char_svm)
 print("Dereferencing Footnotes...")
 extended_tuples = {page: [(tuple[0], tuple[1], resolver.get_block_by_reference(raw_blocks, tuple[1]), page_provider.get_text_from_footnote(
                     tuple[0].text, max_considerations=10)) for tuple in tuples_by_page[page]] for page in tuples_by_page.keys()}   
+all_tuples = [t for page in extended_tuples.keys() for t in extended_tuples[page]]
+print(f"Connected Footnotes: {len(all_tuples)}")
+print(f"Connected Footnotes with Webpage: {len([t for t in all_tuples if t[3] is not None])}")
 
 print("Enriching Footnotes...")
 enricher = Enricher()
