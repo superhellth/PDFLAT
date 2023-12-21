@@ -14,10 +14,8 @@ for t in tuples:
     weights[t[0]] += t[1]
 
 sorted_items = sorted(weights.items(), key=lambda x: x[1])
-# Displaying the sorted items
-for key, value in sorted_items:
-    print(f'{key}: {value}')
-
+most_frequent_kw = [item[0] for item in sorted_items]
+print([i for i in reversed(most_frequent_kw)])
 # with DDGS() as ddgs:
 #     duckduckgo_res = [r["href"] for r in ddgs.text(query, safesearch='off', timelimit='y', max_results=10)]
 # print(duckduckgo_res)
