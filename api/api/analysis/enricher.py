@@ -3,6 +3,7 @@ from rank_bm25 import BM25Okapi
 import torch
 from transformers import AutoTokenizer, AutoModelWithLMHead
 from api.web.web_page_provider import WebPageProvider
+from collections import defaultdict
 
 class Enricher:
 
@@ -12,6 +13,7 @@ class Enricher:
         self.t5 = AutoModelWithLMHead.from_pretrained('t5-base', return_dict=True)
     
     def enrich(self, footnotes_by_page, mode="kw"):
+        weights = defaultdict(float)
         for page_tuples in footnotes_by_page.items():
             page_tuples = page_tuples[1]
             for tuple in page_tuples:
@@ -31,6 +33,8 @@ class Enricher:
                     ### keyword version
                     if mode == "kw":
                         keywords = self.kw_extractor.extract_keywords(legal_act_text)
+                        for kw in keywords:
+                            weights[kw[0]] += kw[1]
                         keyword_text = " ".join([keyword[0] for keyword in keywords])
                         footnote_line.keywords = footnote_line.keywords + "\n" + keyword_text
                     ### BM25 version
@@ -44,4 +48,9 @@ class Enricher:
                             footnote_line.bm25 = footnote_line.bm25 + "\n" + found
                         else:
                             print("No association found:")
+
+        sorted_items = sorted(weights.items(), key=lambda x: x[1])
+        # Displaying the sorted items
+        for key, value in sorted_items:
+            print(f'{key}: {value}')
         return footnotes_by_page

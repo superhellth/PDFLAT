@@ -17,12 +17,11 @@ line_svm = trainer.get_trained_svm(
     type="lines", retrain=False, balance_ratio=4, reload_data=False, run_test=False)
 char_svm = trainer.get_trained_svm(
     type="chars", retrain=False, balance_ratio=3, reload_data=False, run_test=False)
-# sys.exit(0)
 
 print("Processing pdf...")
 resolver = FootnoteResolver(trainer)
-path = "../../../container_data/data/CELEX_32017R1938_EN_TXT.pdf"
-file_name = "CELEX_32017R1938_EN_TXT"
+path = "../../../container_data/data/CELEX_32018R1999_EN_TXT.pdf"
+file_name = "CELEX_32018R1999_EN_TXT"
 scanner = PDFScanner()
 raw_blocks = scanner.pdf_to_blocks(path)
 
@@ -42,7 +41,7 @@ print(f"Connected Footnotes with Webpage: {len([t for t in all_tuples if t[3] is
 
 print("Enriching Footnotes...")
 enricher = Enricher()
-for mode in ["insert", "bm25", "kw", "summary"]:
+for mode in ["insert", "kw", "summary", "bm25"]:
     if mode != "insert":
         enriched = enricher.enrich(dict(extended_tuples), mode=mode)
     inserted_enriched = resolver.insert_footnotes(raw_blocks, tuples_by_page, mode=mode)
@@ -50,11 +49,10 @@ for mode in ["insert", "bm25", "kw", "summary"]:
         json.dump(inserted_enriched, f)
 
 
-def tsneplot(lines, embeddings, footnote_label_id):
-    embs = np.empty((0, 8), dtype="f")
-    word_labels = [line.text[:10] for line in lines]
-    color_list = ["green" if line.label ==
-                  footnote_label_id else "red" for line in lines]
+def tsneplot(embeddings, labels, title="t-SNE visualization"):
+    embs = np.empty((0, 6), dtype="f")
+    word_labels = ["" for line in embeddings]
+    color_list = ["green" if label == 1 else "red" for label in labels]
 
     # adds the vector for each of the closest words to the array
     for emb in embeddings:
@@ -62,7 +60,7 @@ def tsneplot(lines, embeddings, footnote_label_id):
 
     np.set_printoptions(suppress=True)
     Y = TSNE(n_components=2, learning_rate=200, random_state=42,
-             perplexity=len(lines) - 5, init="random").fit_transform(embs)
+             perplexity=len(embeddings) - 5, init="random").fit_transform(embs)
 
     # sets everything up to plot
     df = pd.DataFrame({"x": [x for x in Y[:, 0]],
@@ -96,5 +94,7 @@ def tsneplot(lines, embeddings, footnote_label_id):
     plt.xlim(Y[:, 0].min() - 50, Y[:, 0].max() + 50)
     plt.ylim(Y[:, 1].min() - 50, Y[:, 1].max() + 50)
 
-    plt.title("t-SNE visualization")
+    plt.title(title)
     plt.show()
+
+# tsneplot(line_vecs, line_labels, title="Line Features")

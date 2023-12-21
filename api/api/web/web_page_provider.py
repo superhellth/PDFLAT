@@ -48,7 +48,7 @@ class WebPageProvider:
             return self.get_text(html_url)
 
     def filter_eu_urls(self, url_list):
-        return [url for url in url_list if "https://eur-lex.europa.eu/legal-content/EN/TXT/?" in url or "https://eur-lex.europa.eu/eli/reg/" in url]
+        return [url for url in url_list if "https://eur-lex.europa.eu/legal-content/EN/TXT/?" in url or "https://eur-lex.europa.eu/eli/reg/" in url or "https://eur-lex.europa.eu/legal-content/EN/TXT/HTML" in url]
 
     def get_urls(self, query, max_results=5):
         with DDGS() as ddgs:

@@ -3,6 +3,7 @@ import os
 from sklearn import svm
 import pickle
 from sklearn.model_selection import train_test_split
+from api.analysis.pdf_scanner import PDFScanner
 from api.db.db_reader import DBReader
 
 class DataProvider:
@@ -48,10 +49,10 @@ class DataProvider:
                 self.char_labels = np.load(f)
                 self.char_vecs = np.load(f)
                 self.char_vecs_normed = np.load(f)
-                # print(self.line_labels.shape)
-                # print(len(np.where(self.line_labels == 1)[0]))
-                # print(self.char_labels.shape)
-                # print(len(np.where(self.char_labels == 1)[0]))
+                print(self.line_labels.shape)
+                print(len(np.where(self.line_labels == 1)[0]))
+                print(self.char_labels.shape)
+                print(len(np.where(self.char_labels == 1)[0]))
         else:
             self.data_loaded = False
             self.line_labels = None
@@ -120,6 +121,7 @@ class DataProvider:
         np.random.seed(42)
         selected_negative_indices = np.random.choice(negative_indices, positive_indices.shape[0] * balance_ratio, replace=False)
         selected_indices = np.union1d(selected_negative_indices, positive_indices)
+        print(f"Len selected indices: {selected_indices.shape}")
 
         balanced_vecs = vecs[selected_indices]
         balanced_vecs_normed = vecs_normed[selected_indices]
