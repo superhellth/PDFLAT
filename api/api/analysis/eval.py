@@ -62,55 +62,115 @@ chatgpt_queries = ["EU gas supply security measures 2023",
             "Assessment of internal market dynamics in the EU for electricity in 2023"]
 
 handcrafted_queries = [
-    ""
+    "paris agreement", "decarbonising the energy system", "promoting renewable energy sources"
 ]
 
 indicies = ["default", "insert", "bm25", "keywords", "summary"]
 
-stds_by_index = {index: [] for index in indicies}
-length_by_index = {index: [] for index in indicies}
 
-for q_i in keyword_queries_random:
-
+def print_query(query_text):
     query = {
         'size': 10,
         'query': {
             'match': {
-                'text': q_i
+                'text': query_text
             }
         }
     }
 
+    default_results = []
+    
+
     for index in indicies:
 
         response = client.search(
-            body=query,
-            index=index
-        )
+                    body=query,
+                    index=index
+                )
         results = response["hits"]["hits"]
-        # print("=========================================")
-        # print("=========================================")
-        # print("=========================================")
-        # print(f"Index: {results[0]['_index']}")
-        scores = []
-        length = []
-        for hit in results:
-            # print("-------------------------------------")
-            scores.append(hit['_score'])
-            length.append(len(hit["_source"]["text"]))
-            # source = hit["_source"]
-            # print(f"Score: {hit['_score']}\n Text: {source['text']}")
-        # print()
-        # print(f"Std score: {np.std(np.array(scores))}")
-        # print(f"Mean score: {np.mean(np.array(scores))}")
-        # print(f"Median score: {np.median(np.array(scores))}")
-        if len(scores) < 3:
-            stds_by_index[index].append(0)
+        result_texts = [hit["_source"]["text"] for hit in results]
+        if index == "default":
+            default_results = result_texts
         else:
-            stds_by_index[index].append(np.std(np.array(scores)))
-        length_by_index[index].append(np.mean(length))
+            new_results = [hit for hit in result_texts if hit not in default_results]
+            missing_results = [hit for hit in default_results if hit not in result_texts]
 
-for index in indicies:
-    print(f"Index: {index}")
-    print(f"Mean std: {np.mean(np.array(stds_by_index[index]))}")
-    print(f"Mean length: {np.mean(np.array(length_by_index[index]))}")
+        print("=========================================")
+        print("=========================================")
+        print("=========================================")
+        print(f"Index: {results[0]['_index']}")
+        if index == "default":
+            for hit in results:
+                print("-------------------------------------")
+                source = hit["_source"]
+                print(f"Score: {hit['_score']}\n Text: {source['text']}")
+        else:
+            print("======= New Results =======")
+            for hit in new_results:
+                print(hit)
+                print("-------------------------------------")
+            print("======= Missing =======")
+            for hit in missing_results:
+                print(hit)
+                print("-------------------------------------")
+        print()
+
+def print_stats(query_list):
+    stds_by_index = {index: [] for index in indicies}
+    length_by_index = {index: [] for index in indicies}
+    same_as_def_by_index = {index: 0 for index in indicies}
+    n_results_in_default = 0
+
+    for q_i in query_list:
+
+        query_size = 10
+        query = {
+            'size': query_size,
+            'query': {
+                'match': {
+                    'text': q_i
+                }
+            }
+        }
+
+        default_results = []
+
+        for index in indicies:
+
+            response = client.search(
+                body=query,
+                index=index
+            )
+            results = response["hits"]["hits"]
+            if index == "default":
+                default_results = [hit["_source"]["text"] for hit in results]
+                n_results_in_default += len(default_results)
+            else:
+                same_as_def_by_index[index] += len([1 for hit in results if hit["_source"]["text"] in default_results])
+
+            scores = []
+            length = []
+            for hit in results:
+                scores.append(hit['_score'])
+                length.append(len(hit["_source"]["text"]))
+            if len(scores) < 3:
+                stds_by_index[index].append(0)
+            else:
+                stds_by_index[index].append(np.std(np.array(scores)))
+            if len(length) < 3:
+                length_by_index[index].append(0)
+            else:
+                length_by_index[index].append(np.mean(length))
+
+    for index in indicies:
+        print(f"Index: {index}")
+        print(f"Mean std: {np.mean(np.array(stds_by_index[index]))}")
+        print(f"Mean length: {np.mean(np.array(length_by_index[index]))}")
+        print(f"Same as in default: {same_as_def_by_index[index]} / {n_results_in_default}")
+
+# print_stats(keyword_queries_top)
+# print("===========================")
+# print_stats(keyword_queries_random)
+# print("===========================")
+# print_stats(chatgpt_queries)
+print_query(handcrafted_queries[2])
